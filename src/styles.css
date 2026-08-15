@@ -1,0 +1,189 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * SORTEIO LM — design system
+ * Paleta amostrada da marca L&M Telecom: azul-marinho #203058, azul #1368C0,
+ * dourado #E0A810 (prêmio) e vermelho #D01818 (somente alerta).
+ * Cantos retos, bordas 1px, sem sombras difusas.
+ */
+
+
+@theme inline {
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-4xl: 0px;
+
+  --font-condensada: "Arial Narrow", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", "Roboto Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--foreground);
+  --color-popover: var(--card);
+  --color-popover-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--secondary);
+  --color-accent-foreground: var(--foreground);
+  --color-destaque: var(--destaque);
+  --color-destaque-foreground: var(--destaque-foreground);
+  --color-premio: var(--premio);
+  --color-premio-foreground: var(--premio-foreground);
+  --color-premio-texto: var(--premio-texto);
+  --color-marinho: var(--marinho);
+
+  --color-destructive: var(--destaque);
+  --color-destructive-foreground: var(--destaque-foreground);
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--primary);
+  --color-ring-offset-background: var(--background);
+  --color-sidebar: var(--card);
+  --color-sidebar-foreground: var(--foreground);
+  --color-sidebar-primary: var(--primary);
+  --color-sidebar-primary-foreground: var(--primary-foreground);
+  --color-sidebar-accent: var(--secondary);
+  --color-sidebar-accent-foreground: var(--foreground);
+  --color-sidebar-border: var(--border);
+  --color-sidebar-ring: var(--primary);
+}
+
+:root {
+  --radius: 0px;
+  --background: oklch(0.96 0.008 253.9); /* #EEF2F7 */
+  --card: oklch(1 0 0); /* #FFFFFF */
+  --foreground: oklch(0.26 0.056 264.1); /* #16233F */
+  --muted-foreground: oklch(0.467 0.053 262.7); /* #4A5A78 */
+  --muted: oklch(0.978 0.005 258.3); /* #F6F8FB */
+  --secondary: oklch(0.96 0.008 253.9);
+  --primary: oklch(0.52 0.157 254.3); /* #1368C0 */
+  --primary-foreground: oklch(1 0 0);
+  --marinho: oklch(0.318 0.075 265.9); /* #203058 */
+  --premio: oklch(0.763 0.154 84); /* #E0A810 */
+  --premio-foreground: oklch(0.26 0.056 264.1);
+  --premio-texto: oklch(0.607 0.123 80.7); /* #A8790A */
+  --destaque: oklch(0.516 0.2 27.1); /* #C0161B */
+  --destaque-foreground: oklch(1 0 0);
+  --border: oklch(0.872 0.023 254.4); /* #CBD6E4 */
+}
+
+.dark {
+  --background: oklch(0.192 0.035 261.3); /* #0B1424 */
+  --card: oklch(0.24 0.046 261.8); /* #131F35 */
+  --foreground: oklch(0.941 0.014 258.3); /* #E6ECF5 */
+  --muted-foreground: oklch(0.721 0.046 259.2); /* #94A6C2 */
+  --muted: oklch(0.287 0.056 262.1); /* #1B2A46 */
+  --secondary: oklch(0.287 0.056 262.1);
+  --primary: oklch(0.693 0.131 246); /* #4FA3E8 */
+  --primary-foreground: oklch(0.192 0.035 261.3);
+  --marinho: oklch(0.24 0.046 261.8);
+  --premio: oklch(0.825 0.15 86.6); /* #F0BE3C */
+  --premio-foreground: oklch(0.192 0.035 261.3);
+  --premio-texto: oklch(0.825 0.15 86.6);
+  --destaque: oklch(0.709 0.184 29.1); /* #FF6B5A */
+  --destaque-foreground: oklch(0.192 0.035 261.3);
+  --border: oklch(0.328 0.053 260.5); /* #253550 */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --background: oklch(0.192 0.035 261.3);
+    --card: oklch(0.24 0.046 261.8);
+    --foreground: oklch(0.941 0.014 258.3);
+    --muted-foreground: oklch(0.721 0.046 259.2);
+    --muted: oklch(0.287 0.056 262.1);
+    --secondary: oklch(0.287 0.056 262.1);
+    --primary: oklch(0.693 0.131 246);
+    --primary-foreground: oklch(0.192 0.035 261.3);
+    --marinho: oklch(0.24 0.046 261.8);
+    --premio: oklch(0.825 0.15 86.6);
+    --premio-foreground: oklch(0.192 0.035 261.3);
+    --premio-texto: oklch(0.825 0.15 86.6);
+    --destaque: oklch(0.709 0.184 29.1);
+    --destaque-foreground: oklch(0.192 0.035 261.3);
+    --border: oklch(0.328 0.053 260.5);
+  }
+}
+
+
+@utility titulo {
+  font-family: var(--font-condensada);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: -0.03em;
+  font-stretch: condensed;
+}
+
+@utility num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Serrilha de bilhete: linha pontilhada de destaque */
+@utility serrilha {
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--color-border) 0 6px,
+    transparent 6px 12px
+  );
+  height: 1px;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+    border-radius: 0 !important;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-condensada);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: -0.03em;
+  }
+}
+
+/* Marca: versão clara/escura da logo conforme o tema */
+.marca-clara {
+  display: block;
+}
+.marca-escura {
+  display: none;
+}
+.dark .marca-clara {
+  display: none;
+}
+.dark .marca-escura {
+  display: block;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) .marca-clara {
+    display: none;
+  }
+  :root:not(.light) .marca-escura {
+    display: block;
+  }
+}
