@@ -83,7 +83,7 @@ function Comprovante() {
                 key={n.numero}
                 className="num border border-primary bg-primary px-1 py-2 text-center text-[13px] text-primary-foreground"
               >
-                {formatarNumero(n.numero, data.campanha?.digitos_cartela ?? 6)}
+                {formatarNumero(n.numero, data.campanha?.digitos_cartela ?? 4)}
               </span>
             ))}
           </div>

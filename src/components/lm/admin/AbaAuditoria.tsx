@@ -15,6 +15,20 @@ const MOTIVO: Record<string, string> = {
   carencia_reativacao: "Carência de reativação",
   limite_por_cpf: "Limite por CPF",
   duplicado_idempotente: "Duplicado (chave idempotente)",
+  cliente_inelegivel: "Cliente autoexcluído",
+  fora_de_campanha: "Fora da janela da campanha",
+  sem_regra: "Gatilho sem peso definido",
+  peso_zerado: "Peso zerado na campanha",
+};
+
+const ACAO: Record<string, string> = {
+  criar_campanha: "Criou campanha",
+  editar_campanha: "Editou campanha",
+  abrir_campanha: "Abriu campanha",
+  apurar_campanha: "Apurou campanha",
+  salvar_regras: "Alterou pesos",
+  editar_configuracao: "Editou dados da empresa",
+  processar_eventos: "Processou eventos",
 };
 
 export function AbaAuditoria() {
@@ -34,7 +48,9 @@ export function AbaAuditoria() {
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
         />
-        {isFetching && <span className="text-[11px] text-muted-foreground">carregando…</span>}
+        {isFetching && (
+          <span className="text-[11px] text-muted-foreground">carregando…</span>
+        )}
       </div>
 
       <Painel titulo={`Créditos concedidos (${data?.creditos.length ?? 0})`}>
@@ -54,9 +70,13 @@ export function AbaAuditoria() {
               {(data?.creditos ?? []).map((c) => (
                 <tr key={c.id} className="border-b border-border/60">
                   <td className="py-2 pr-2">{c.nome}</td>
-                  <td className="num text-[12px] text-muted-foreground">{c.documento}</td>
+                  <td className="num text-[12px] text-muted-foreground">
+                    {c.documento}
+                  </td>
                   <td>{ROTULO[c.tipo] ?? c.tipo}</td>
-                  <td className="num text-[12px] text-muted-foreground">{c.competencia ?? "—"}</td>
+                  <td className="num text-[12px] text-muted-foreground">
+                    {c.competencia ?? "—"}
+                  </td>
                   <td className="num pr-8 text-right">{c.quantidade}</td>
                   <td className="num text-[12px] text-muted-foreground">
                     {new Date(c.criado_em).toLocaleString("pt-BR")}
@@ -68,7 +88,36 @@ export function AbaAuditoria() {
         </div>
       </Painel>
 
-      <Painel titulo={`Eventos bloqueados pelas travas (${data?.bloqueados.length ?? 0})`}>
+      <Painel titulo={`Ações da equipe no painel (${data?.acoes.length ?? 0})`}>
+        <table className="w-full text-[13px]">
+          <thead>
+            <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+              <th className="py-2">Quem</th>
+              <th>O que fez</th>
+              <th>Alvo</th>
+              <th className="w-48">Data e hora</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(data?.acoes ?? []).map((a) => (
+              <tr key={a.id} className="border-b border-border/60">
+                <td className="num py-2 pr-2 text-[12px]">{a.email}</td>
+                <td>{ACAO[a.acao] ?? a.acao}</td>
+                <td className="num text-[12px] text-muted-foreground">
+                  {a.alvo ?? "—"}
+                </td>
+                <td className="num text-[12px] text-muted-foreground">
+                  {new Date(a.criado_em).toLocaleString("pt-BR")}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Painel>
+
+      <Painel
+        titulo={`Eventos bloqueados pelas travas (${data?.bloqueados.length ?? 0})`}
+      >
         <table className="w-full text-[13px]">
           <thead>
             <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -87,7 +136,9 @@ export function AbaAuditoria() {
                 <td className="titulo text-[11px] tracking-wide text-destaque">
                   {MOTIVO[b.motivo] ?? b.motivo}
                 </td>
-                <td className="text-[12px] text-muted-foreground">{b.detalhe ?? "—"}</td>
+                <td className="text-[12px] text-muted-foreground">
+                  {b.detalhe ?? "—"}
+                </td>
                 <td className="num text-[12px] text-muted-foreground">
                   {new Date(b.ocorrido_em).toLocaleString("pt-BR")}
                 </td>

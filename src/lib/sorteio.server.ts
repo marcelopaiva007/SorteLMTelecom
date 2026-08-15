@@ -6,8 +6,6 @@ import {
 } from "@tanstack/react-start/server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-export const CAMPANHA_ID = "11111111-1111-1111-1111-111111111111";
-
 const COOKIE_SESSAO = "sorteio_lm_sessao";
 const DIAS_DE_SESSAO = 7;
 
@@ -124,13 +122,43 @@ export async function clientePorDocumento(cpfCnpj: string) {
   return data;
 }
 
+/**
+ * A campanha que as telas do cliente mostram.
+ *
+ * Era um UUID fixo no código, então o painel deixava criar campanhas que o
+ * cliente nunca veria. Agora vale a campanha aberta — e o banco garante que só
+ * existe uma por vez. Sem campanha aberta, cai na última já encerrada, para que
+ * a tela de resultado continue mostrando o último sorteio.
+ */
 export async function campanhaAtual() {
-  const { data } = await supabaseAdmin
+  const { data: aberta } = await supabaseAdmin
     .from("campanhas")
     .select("*")
-    .eq("id", CAMPANHA_ID)
+    .eq("status", "aberta")
+    .order("inicio", { ascending: false })
+    .limit(1)
     .maybeSingle();
-  return data;
+  if (aberta) return aberta;
+
+  const { data: ultima } = await supabaseAdmin
+    .from("campanhas")
+    .select("*")
+    .neq("status", "rascunho")
+    .order("data_apuracao", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return ultima;
+}
+
+export async function regrasDaCampanha(campanhaId: string) {
+  const { data } = await supabaseAdmin
+    .from("regras")
+    .select(
+      "tipo_evento, quantidade, carencia_dias, limite_meses, bonus_a_cada_meses, bonus_quantidade, teto_quantidade",
+    )
+    .eq("campanha_id", campanhaId)
+    .order("quantidade", { ascending: false });
+  return data ?? [];
 }
 
 export function mascararWhatsapp(w: string | null) {

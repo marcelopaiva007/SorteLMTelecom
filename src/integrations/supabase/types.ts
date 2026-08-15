@@ -180,30 +180,69 @@ export type Database = {
         }
         Relationships: []
       }
+      auditoria_admin: {
+        Row: {
+          acao: string
+          alvo: string | null
+          antes: Json | null
+          criado_em: string
+          depois: Json | null
+          email: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          acao: string
+          alvo?: string | null
+          antes?: Json | null
+          criado_em?: string
+          depois?: Json | null
+          email?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          acao?: string
+          alvo?: string | null
+          antes?: Json | null
+          criado_em?: string
+          depois?: Json | null
+          email?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       creditos: {
         Row: {
           campanha_id: string
           cliente_id: string
           criado_em: string
+          detalhe: Json
           evento_id: string
           id: string
           quantidade: number
+          regra_id: string | null
         }
         Insert: {
           campanha_id: string
           cliente_id: string
           criado_em?: string
+          detalhe?: Json
           evento_id: string
           id?: string
           quantidade: number
+          regra_id?: string | null
         }
         Update: {
           campanha_id?: string
           cliente_id?: string
           criado_em?: string
+          detalhe?: Json
           evento_id?: string
           id?: string
           quantidade?: number
+          regra_id?: string | null
         }
         Relationships: [
           {
@@ -503,6 +542,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apurar_campanha: {
+        Args: {
+          p_campanha_id: string
+          p_concurso: string
+          p_data_extracao: string
+          p_premios: string[]
+        }
+        Returns: Json
+      }
+      conceder_creditos: { Args: { p_evento_id: string }; Returns: Json }
       consumir_codigo_acesso: {
         Args: { p_cliente_id: string; p_codigo: string }
         Returns: boolean
@@ -525,6 +574,19 @@ export type Database = {
       }
       is_admin: { Args: { _user_id?: string }; Returns: boolean }
       limpar_expirados: { Args: Record<PropertyKey, never>; Returns: undefined }
+      processar_eventos_pendentes: {
+        Args: { p_limite?: number }
+        Returns: Json
+      }
+      registrar_auditoria: {
+        Args: {
+          p_acao: string
+          p_alvo?: string | null
+          p_antes?: Json | null
+          p_depois?: Json | null
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       status_campanha: "rascunho" | "aberta" | "encerrada" | "apurada"

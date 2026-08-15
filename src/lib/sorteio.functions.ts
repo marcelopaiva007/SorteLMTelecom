@@ -121,6 +121,25 @@ export const validarCodigo = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+// Pesos da campanha para a tela de entrada, que é vista antes do login.
+// Sai do banco em vez de estar escrito à mão na tela: era isso que fazia a
+// primeira tela anunciar metade do que o regulamento prometia.
+export const regrasVigentes = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const s = await import("./sorteio.server");
+    const campanha = await s.campanhaAtual();
+    if (!campanha) return { campanha: null, regras: [] };
+    return {
+      campanha: {
+        nome: campanha.nome,
+        premio: campanha.premio,
+        digitos_cartela: campanha.digitos_cartela,
+      },
+      regras: await s.regrasDaCampanha(campanha.id),
+    };
+  },
+);
+
 // O cookie de sessão é httpOnly, então a página não consegue olhar para ele.
 // Esta é a pergunta barata que substitui o antigo `lerToken()`.
 export const sessaoAtiva = createServerFn({ method: "GET" }).handler(
@@ -137,9 +156,28 @@ export const carregarPainel = createServerFn({ method: "POST" }).handler(
       await import("@/integrations/supabase/client.server");
     const cliente = await s.clienteDaSessao();
     if (!cliente) return { ok: false as const };
-    const campanha = await s.campanhaAtual();
 
-    const [creditosRes, meusRes, ocupadosRes, participantesRes] =
+    const campanha = await s.campanhaAtual();
+    if (!campanha) {
+      return {
+        ok: true as const,
+        cliente: {
+          nome: cliente.nome,
+          primeiroNome: s.primeiroNome(cliente.nome),
+          mesesEmDia: cliente.meses_em_dia,
+        },
+        campanha: null,
+        regras: [],
+        creditos: [],
+        totalCreditos: 0,
+        saldo: 0,
+        meusNumeros: [],
+        ocupados: [],
+        participantes: 0,
+      };
+    }
+
+    const [creditosRes, meusRes, ocupadosRes, participantesRes, regras] =
       await Promise.all([
         supabaseAdmin
           .from("creditos")
@@ -147,22 +185,23 @@ export const carregarPainel = createServerFn({ method: "POST" }).handler(
             "id, quantidade, criado_em, eventos(tipo, competencia, ocorrido_em)",
           )
           .eq("cliente_id", cliente.id)
-          .eq("campanha_id", s.CAMPANHA_ID)
+          .eq("campanha_id", campanha.id)
           .order("criado_em", { ascending: false }),
         supabaseAdmin
           .from("numeros")
           .select("numero, escolhido_em, protocolo")
           .eq("cliente_id", cliente.id)
-          .eq("campanha_id", s.CAMPANHA_ID)
+          .eq("campanha_id", campanha.id)
           .order("numero"),
         supabaseAdmin
           .from("numeros")
           .select("numero")
-          .eq("campanha_id", s.CAMPANHA_ID),
+          .eq("campanha_id", campanha.id),
         supabaseAdmin
           .from("creditos")
           .select("cliente_id")
-          .eq("campanha_id", s.CAMPANHA_ID),
+          .eq("campanha_id", campanha.id),
+        s.regrasDaCampanha(campanha.id),
       ]);
 
     const creditos = (creditosRes.data ?? []).map((c) => {
@@ -198,6 +237,7 @@ export const carregarPainel = createServerFn({ method: "POST" }).handler(
         // precisa trafegar, não trafega.
       },
       campanha,
+      regras,
       creditos,
       totalCreditos,
       saldo: totalCreditos - meusNumeros.length,
@@ -226,6 +266,13 @@ export const escolherNumeros = createServerFn({ method: "POST" })
     if (!cliente)
       return { ok: false as const, erro: "Sessão expirada. Entre novamente." };
 
+    const campanha = await s.campanhaAtual();
+    if (!campanha)
+      return {
+        ok: false as const,
+        erro: "Nenhuma campanha aberta no momento.",
+      };
+
     // Saldo, janela da campanha, faixa da cartela e gravação acontecem na mesma
     // transação. Antes o saldo era lido e só depois gravado, então duas
     // requisições simultâneas passavam as duas pela checagem.
@@ -233,7 +280,7 @@ export const escolherNumeros = createServerFn({ method: "POST" })
       "escolher_numeros",
       {
         p_cliente_id: cliente.id,
-        p_campanha_id: s.CAMPANHA_ID,
+        p_campanha_id: campanha.id,
         p_numeros: data.numeros,
       },
     );
@@ -279,14 +326,16 @@ export const buscarComprovante = createServerFn({ method: "POST" })
     const cliente = await s.clienteDaSessao();
     if (!cliente)
       return { ok: false as const, erro: "Sessão expirada. Entre novamente." };
+    const campanha = await s.campanhaAtual();
+    if (!campanha)
+      return { ok: false as const, erro: "Campanha não encontrada." };
     const { data: numeros } = await supabaseAdmin
       .from("numeros")
       .select("numero, escolhido_em")
       .eq("cliente_id", cliente.id)
-      .eq("campanha_id", s.CAMPANHA_ID)
+      .eq("campanha_id", campanha.id)
       .eq("protocolo", data.protocolo)
       .order("numero");
-    const campanha = await s.campanhaAtual();
     return {
       ok: true as const,
       nome: cliente.nome,

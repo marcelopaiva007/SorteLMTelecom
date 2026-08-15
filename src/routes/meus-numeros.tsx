@@ -9,10 +9,14 @@ export const Route = createFileRoute("/meus-numeros")({
       { title: "Meus números — Sorteio LM" },
       {
         name: "description",
-        content: "Todos os números que você já escolheu na campanha e o histórico de créditos com a origem de cada um.",
+        content:
+          "Todos os números que você já escolheu na campanha e o histórico de créditos com a origem de cada um.",
       },
       { property: "og:title", content: "Meus números — Sorteio LM" },
-      { property: "og:description", content: "Seus números e o histórico de créditos no Sorteio LM." },
+      {
+        property: "og:description",
+        content: "Seus números e o histórico de créditos no Sorteio LM.",
+      },
     ],
   }),
   component: MeusNumeros,
@@ -24,12 +28,14 @@ function MeusNumeros() {
   if (isLoading || !data || !data.ok) {
     return (
       <Layout>
-        <p className="text-sm text-muted-foreground">Carregando seus números…</p>
+        <p className="text-sm text-muted-foreground">
+          Carregando seus números…
+        </p>
       </Layout>
     );
   }
 
-  const digitos = data.campanha?.digitos_cartela ?? 6;
+  const digitos = data.campanha?.digitos_cartela ?? 4;
 
   return (
     <Layout>
@@ -67,7 +73,9 @@ function MeusNumeros() {
         )}
 
         <div className="border border-border bg-card">
-          <h2 className="border-b border-border px-4 py-2 text-base">Histórico de créditos</h2>
+          <h2 className="border-b border-border px-4 py-2 text-base">
+            Histórico de créditos
+          </h2>
           <ul>
             {data.creditos.map((c) => (
               <li
@@ -81,7 +89,9 @@ function MeusNumeros() {
                     {c.competencia ? ` · ${c.competencia}` : ""}
                   </p>
                 </div>
-                <span className="num text-lg text-primary">+{c.quantidade}</span>
+                <span className="num text-lg text-primary">
+                  +{c.quantidade}
+                </span>
               </li>
             ))}
           </ul>

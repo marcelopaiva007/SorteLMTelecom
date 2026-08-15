@@ -4,11 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Layout, SeloOficial } from "@/components/lm/Layout";
 import {
+  regrasVigentes,
   sessaoAtiva,
   solicitarCodigo,
   validarCodigo,
 } from "@/lib/sorteio.functions";
 import { formatarDocumento } from "@/lib/sessao";
+import { descreverRegra } from "@/lib/regras";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -190,21 +192,26 @@ function Entrada() {
   );
 }
 
-// Os pesos vêm da tabela `regras` — trazê-los para cá é trabalho da Onda 2.
-// Até lá, estes números são os mesmos do regulamento em /ajustes e da migration
-// inicial; antes a tela anunciava metade (05/04/03/02) do que o regulamento
-// prometia (10/8/5/3).
+// Os pesos saem da tabela `regras`, a mesma que o motor de crédito lê. Enquanto
+// estavam escritos à mão aqui, esta tela anunciava 05/04/03/02 e o regulamento
+// prometia 10/8/5/3.
 function ComoSeGanha() {
+  const buscar = useServerFn(regrasVigentes);
+  const { data } = useQuery({
+    queryKey: ["regras"],
+    queryFn: () => buscar({}),
+  });
+  const regras = data?.regras ?? [];
+
+  if (!regras.length) return null;
+
   return (
     <div className="space-y-2 border border-border bg-card p-4">
       <h2 className="text-base">Como se ganha número</h2>
       <ul className="num space-y-1 text-[13px] text-muted-foreground">
-        <li>10 — assinar plano novo</li>
-        <li>08 — reativar contrato cancelado</li>
-        <li>05 — quitar débito em atraso</li>
-        <li>
-          03 — pagar a mensalidade em dia (+1 a cada 6 meses seguidos, teto 6)
-        </li>
+        {regras.map((r) => (
+          <li key={r.tipo_evento}>{descreverRegra(r)}</li>
+        ))}
       </ul>
     </div>
   );

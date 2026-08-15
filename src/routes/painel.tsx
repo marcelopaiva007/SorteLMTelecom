@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AbaCampanhas } from "@/components/lm/admin/AbaCampanhas";
 import { AbaPesos } from "@/components/lm/admin/AbaPesos";
 import { AbaSincronizacao } from "@/components/lm/admin/AbaSincronizacao";
+import { AbaApuracao } from "@/components/lm/admin/AbaApuracao";
 import { AbaAuditoria } from "@/components/lm/admin/AbaAuditoria";
 import { AbaEfeito } from "@/components/lm/admin/AbaEfeito";
 import { AbaAjustes } from "@/components/lm/admin/AbaAjustes";
@@ -34,6 +35,7 @@ export const Route = createFileRoute("/painel")({
 const ABAS = [
   { id: "campanhas", label: "Campanhas" },
   { id: "pesos", label: "Pesos dos gatilhos" },
+  { id: "apuracao", label: "Apuração" },
   { id: "sincronizacao", label: "Sincronização" },
   { id: "auditoria", label: "Auditoria" },
   { id: "efeito", label: "Efeito no negócio" },
@@ -61,7 +63,9 @@ function Painel() {
   if (carregando) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <span className="titulo text-[13px] text-muted-foreground">Carregando…</span>
+        <span className="titulo text-[13px] text-muted-foreground">
+          Carregando…
+        </span>
       </div>
     );
   }
@@ -78,8 +82,13 @@ function Painel() {
           </span>
         </div>
         <div className="flex items-center gap-4">
-          <span className="num text-[12px] text-muted-foreground">{sessao.email}</span>
-          <Link to="/" className="text-[12px] text-muted-foreground underline underline-offset-2">
+          <span className="num text-[12px] text-muted-foreground">
+            {sessao.email}
+          </span>
+          <Link
+            to="/"
+            className="text-[12px] text-muted-foreground underline underline-offset-2"
+          >
             ver telas do cliente
           </Link>
           <button
@@ -113,6 +122,7 @@ function Painel() {
       <main className="mx-auto max-w-[1400px] px-6 py-6">
         {aba === "campanhas" && <AbaCampanhas />}
         {aba === "pesos" && <AbaPesos />}
+        {aba === "apuracao" && <AbaApuracao />}
         {aba === "sincronizacao" && <AbaSincronizacao />}
         {aba === "auditoria" && <AbaAuditoria />}
         {aba === "efeito" && <AbaEfeito />}
@@ -138,7 +148,10 @@ function Entrar() {
     e.preventDefault();
     setEnviando(true);
     setErro(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password: senha,
+    });
     if (error) setErro("E-mail ou senha incorretos.");
     setEnviando(false);
   }
@@ -152,8 +165,8 @@ function Entrar() {
         <Marca />
         <h1 className="titulo mt-4 text-[18px]">Painel administrativo</h1>
         <p className="mt-1 text-[12px] text-muted-foreground">
-          Acesso restrito à equipe da L&M Telecom. O acesso do cliente é por CPF e código, em outra
-          tela.
+          Acesso restrito à equipe da L&M Telecom. O acesso do cliente é por CPF
+          e código, em outra tela.
         </p>
 
         <div className="mt-5 grid gap-3">
@@ -171,7 +184,9 @@ function Entrar() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Senha</span>
+            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              Senha
+            </span>
             <input
               type="password"
               autoComplete="current-password"
@@ -189,7 +204,11 @@ function Entrar() {
           </p>
         )}
 
-        <button type="submit" disabled={enviando} className={botao.primario + " mt-4 w-full"}>
+        <button
+          type="submit"
+          disabled={enviando}
+          className={botao.primario + " mt-4 w-full"}
+        >
           {enviando ? "Entrando…" : "Entrar"}
         </button>
       </form>

@@ -1,11 +1,36 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { adminResumo } from "@/lib/admin.functions";
-import { Aviso, Indicador, Painel } from "./ui";
+import { useState } from "react";
+import { adminResumo, processarEventos } from "@/lib/admin.functions";
+import { Aviso, Indicador, Painel, botao } from "./ui";
 
 export function AbaSincronizacao() {
   const resumo = useServerFn(adminResumo);
-  const { data } = useQuery({ queryKey: ["admin", "resumo"], queryFn: () => resumo({}) });
+  const processar = useServerFn(processarEventos);
+  const qc = useQueryClient();
+  const { data } = useQuery({
+    queryKey: ["admin", "resumo"],
+    queryFn: () => resumo({}),
+  });
+
+  const [resultado, setResultado] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const mutar = useMutation({
+    mutationFn: () => processar({}),
+    onSuccess: (r) => {
+      if (r.ok) {
+        setErro(null);
+        setResultado(
+          `${r.creditados} evento(s) viraram crédito, ${r.bloqueados} barrado(s) pelas travas, ${r.ignorados} já processado(s).`,
+        );
+        qc.invalidateQueries({ queryKey: ["admin"] });
+      } else {
+        setResultado(null);
+        setErro(r.erro);
+      }
+    },
+  });
 
   const sinc = data?.sincronizacoes ?? [];
   const falhas = data?.falhasSeguidas ?? 0;
@@ -34,7 +59,10 @@ export function AbaSincronizacao() {
           valor={String(data?.clientesEspelhados ?? 0)}
           nota="somente leitura do ERP"
         />
-        <Indicador rotulo="Eventos do dia" valor={String(data?.eventosHoje ?? 0)} />
+        <Indicador
+          rotulo="Eventos do dia"
+          valor={String(data?.eventosHoje ?? 0)}
+        />
         <Indicador
           rotulo="Duplicados barrados"
           valor={String(data?.duplicadosBarrados ?? 0)}
@@ -48,16 +76,37 @@ export function AbaSincronizacao() {
             {falhas} falhas seguidas na leitura
           </span>
           <br />
-          Nenhum evento novo está sendo espelhado. Verifique o conector do ERP antes que créditos
-          deixem de ser gerados.
+          Nenhum evento novo está sendo espelhado. Verifique o conector do ERP
+          antes que créditos deixem de ser gerados.
         </Aviso>
       )}
 
+      <Painel titulo="Processar eventos">
+        <Aviso>
+          Todo evento novo vira crédito sozinho, na hora em que entra. Este
+          botão existe para a carga inicial e para quando o conector do ERP
+          voltar depois de uma falha: ele passa pelos eventos que ainda não
+          viraram crédito nem bloqueio. Rodar duas vezes não credita duas vezes.
+        </Aviso>
+        {resultado && <Aviso>{resultado}</Aviso>}
+        {erro && <Aviso tom="destaque">{erro}</Aviso>}
+        <button
+          className={botao.primario + " mt-3"}
+          disabled={mutar.isPending}
+          onClick={() => mutar.mutate()}
+        >
+          {mutar.isPending ? "Processando…" : "Processar eventos pendentes"}
+        </button>
+      </Painel>
+
       <Painel titulo="Histórico de leituras">
         <Aviso>
-          Origem: <span className="titulo text-[11px] tracking-widest">aguardando conector do ERP</span>{" "}
-          — os contadores acima leem as tabelas reais do sistema. A integração é somente leitura: o
-          Sorteio LM nunca escreve no ERP.
+          Origem:{" "}
+          <span className="titulo text-[11px] tracking-widest">
+            aguardando conector do ERP
+          </span>{" "}
+          — os contadores acima leem as tabelas reais do sistema. A integração é
+          somente leitura: o Sorteio LM nunca escreve no ERP.
         </Aviso>
         <table className="mt-3 w-full text-[13px]">
           <thead>
@@ -79,7 +128,9 @@ export function AbaSincronizacao() {
                 <td
                   className={
                     "text-[11px] uppercase tracking-wide " +
-                    (s.status === "falha" ? "text-destaque" : "text-muted-foreground")
+                    (s.status === "falha"
+                      ? "text-destaque"
+                      : "text-muted-foreground")
                   }
                 >
                   {s.status}
@@ -87,7 +138,9 @@ export function AbaSincronizacao() {
                 <td className="num text-right">{s.clientes_lidos}</td>
                 <td className="num text-right">{s.eventos_lidos}</td>
                 <td className="num text-right">{s.duplicados_barrados}</td>
-                <td className="text-[12px] text-muted-foreground">{s.erro ?? "—"}</td>
+                <td className="text-[12px] text-muted-foreground">
+                  {s.erro ?? "—"}
+                </td>
               </tr>
             ))}
           </tbody>

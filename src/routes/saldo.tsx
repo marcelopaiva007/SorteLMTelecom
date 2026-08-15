@@ -1,7 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CriterioCongelado, Layout, Progresso, SeloOficial } from "@/components/lm/Layout";
+import {
+  CriterioCongelado,
+  Layout,
+  Progresso,
+  SeloOficial,
+} from "@/components/lm/Layout";
 import { usePainel } from "@/hooks/usePainel";
 import { dataBR } from "@/lib/sessao";
+import { mesesParaProximoBonus, numerosNaOrdem } from "@/lib/regras";
 
 export const Route = createFileRoute("/saldo")({
   head: () => ({
@@ -9,10 +15,14 @@ export const Route = createFileRoute("/saldo")({
       { title: "Meu saldo de números — Sorteio LM" },
       {
         name: "description",
-        content: "Veja quantos números você já ganhou, de onde veio cada crédito e o que fazer para ganhar mais no mês seguinte.",
+        content:
+          "Veja quantos números você já ganhou, de onde veio cada crédito e o que fazer para ganhar mais no mês seguinte.",
       },
       { property: "og:title", content: "Meu saldo de números — Sorteio LM" },
-      { property: "og:description", content: "Seu saldo de números do Sorteio L&M Telecom." },
+      {
+        property: "og:description",
+        content: "Seu saldo de números do Sorteio L&M Telecom.",
+      },
     ],
   }),
   component: Saldo,
@@ -29,11 +39,45 @@ function Saldo() {
     );
   }
 
-  const { cliente, campanha, creditos, saldo, meusNumeros, ocupados, participantes } = data;
-  const total = Math.pow(10, campanha?.digitos_cartela ?? 6);
+  const {
+    cliente,
+    campanha,
+    regras,
+    creditos,
+    saldo,
+    meusNumeros,
+    ocupados,
+    participantes,
+  } = data;
+
+  if (!campanha) {
+    return (
+      <Layout>
+        <div className="border border-border bg-card p-4">
+          <h1 className="text-2xl leading-none">Sem campanha aberta</h1>
+          <p className="mt-2 text-[13px] text-muted-foreground">
+            Nenhuma campanha está aberta no momento. Assim que a próxima
+            começar, seus números aparecem aqui.
+          </p>
+        </div>
+      </Layout>
+    );
+  }
+
+  const total = Math.pow(10, campanha.digitos_cartela);
   const preenchida = (ocupados.length / total) * 100;
-  const proximoBonus = 6 - (cliente.mesesEmDia % 6);
-  const porMensalidade = Math.min(6, 3 + Math.floor(cliente.mesesEmDia / 6));
+
+  // A escada vem da tabela de regras, a mesma que o motor de crédito lê.
+  const regraMensalidade = regras.find(
+    (r) => r.tipo_evento === "mensalidade_em_dia",
+  );
+  const proximoBonus = mesesParaProximoBonus(
+    regraMensalidade,
+    cliente.mesesEmDia,
+  );
+  const porMensalidade = regraMensalidade
+    ? numerosNaOrdem(regraMensalidade, cliente.mesesEmDia + 1)
+    : 0;
 
   return (
     <Layout>
@@ -43,7 +87,9 @@ function Saldo() {
             Seus números disponíveis
           </p>
           <div className="flex items-end gap-3">
-            <span className="num text-6xl leading-none text-primary">{saldo}</span>
+            <span className="num text-6xl leading-none text-primary">
+              {saldo}
+            </span>
             <span className="titulo pb-1 text-[12px] tracking-widest text-muted-foreground">
               para escolher
             </span>
@@ -51,8 +97,8 @@ function Saldo() {
           <div className="serrilha my-3" />
           <p className="text-[12px] text-muted-foreground">
             Olá, {cliente.primeiroNome}. Você já escolheu{" "}
-            <span className="num text-foreground">{meusNumeros.length}</span> número(s) nesta
-            campanha.
+            <span className="num text-foreground">{meusNumeros.length}</span>{" "}
+            número(s) nesta campanha.
           </p>
           {saldo > 0 && (
             <Link
@@ -65,8 +111,12 @@ function Saldo() {
         </div>
 
         <div className="border border-premio bg-card p-4">
-          <p className="titulo text-[11px] tracking-widest text-premio-texto">Prêmio da campanha</p>
-          <h2 className="text-2xl leading-none text-premio-texto">{campanha?.premio}</h2>
+          <p className="titulo text-[11px] tracking-widest text-premio-texto">
+            Prêmio da campanha
+          </p>
+          <h2 className="text-2xl leading-none text-premio-texto">
+            {campanha?.premio}
+          </h2>
           <p className="mt-1 text-[12px] text-muted-foreground">
             {campanha?.nome} · apuração ao vivo em{" "}
             <span className="num">{dataBR(campanha?.data_apuracao ?? "")}</span>
@@ -91,7 +141,9 @@ function Saldo() {
         )}
 
         <div className="border border-border bg-card">
-          <h2 className="border-b border-border px-4 py-2 text-base">De onde vieram</h2>
+          <h2 className="border-b border-border px-4 py-2 text-base">
+            De onde vieram
+          </h2>
           <ul>
             {creditos.map((c) => (
               <li
@@ -106,23 +158,49 @@ function Saldo() {
                     </p>
                   )}
                 </div>
-                <span className="num text-lg text-primary">+{c.quantidade}</span>
+                <span className="num text-lg text-primary">
+                  +{c.quantidade}
+                </span>
               </li>
             ))}
           </ul>
         </div>
 
-        <div className="border border-border bg-primary/5 p-4">
-          <p className="titulo text-[11px] tracking-widest text-muted-foreground">
-            Para o mês que vem
-          </p>
-          <p className="mt-1 text-[13px]">
-            Pagando a mensalidade em dia você ganha{" "}
-            <span className="num text-primary">+{porMensalidade}</span> números. Faltam{" "}
-            <span className="num text-primary">{proximoBonus}</span> mês(es) em dia seguidos para
-            subir mais 1 por mês (teto de 6).
-          </p>
-        </div>
+        {regraMensalidade && (
+          <div className="border border-border bg-primary/5 p-4">
+            <p className="titulo text-[11px] tracking-widest text-muted-foreground">
+              Para o mês que vem
+            </p>
+            <p className="mt-1 text-[13px]">
+              Pagando a mensalidade em dia você ganha{" "}
+              <span className="num text-primary">+{porMensalidade}</span>{" "}
+              números.
+              {proximoBonus !== null && (
+                <>
+                  {" "}
+                  Faltam{" "}
+                  <span className="num text-primary">{proximoBonus}</span>{" "}
+                  mês(es) em dia seguidos para subir mais{" "}
+                  <span className="num">
+                    {regraMensalidade.bonus_quantidade}
+                  </span>{" "}
+                  por mês
+                  {regraMensalidade.teto_quantidade !== null && (
+                    <>
+                      {" "}
+                      (teto de{" "}
+                      <span className="num">
+                        {regraMensalidade.teto_quantidade}
+                      </span>
+                      )
+                    </>
+                  )}
+                  .
+                </>
+              )}
+            </p>
+          </div>
+        )}
 
         <SeloOficial />
       </div>

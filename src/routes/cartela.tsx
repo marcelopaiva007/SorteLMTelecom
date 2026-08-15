@@ -52,7 +52,22 @@ function Cartela() {
     );
   }
 
-  const digitos = data.campanha?.digitos_cartela ?? 6;
+  // Sem campanha não existe cartela: o tamanho dela vem de digitos_cartela.
+  // O antigo fallback de 6 dígitos tentava desenhar 1.000.000 de botões.
+  if (!data.campanha) {
+    return (
+      <Layout>
+        <div className="border border-border bg-card p-4">
+          <h1 className="text-2xl leading-none">Sem campanha aberta</h1>
+          <p className="mt-2 text-[13px] text-muted-foreground">
+            A cartela abre quando a próxima campanha começar.
+          </p>
+        </div>
+      </Layout>
+    );
+  }
+
+  const digitos = data.campanha.digitos_cartela;
   const total = Math.pow(10, digitos);
   const blocos = total / 100;
   const saldo = data.saldo;
