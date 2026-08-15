@@ -1,0 +1,50 @@
+# Dependências
+node_modules/
+.pnp
+.pnp.js
+
+# Build
+dist/
+dist-ssr/
+.output/
+.nitro/
+.vinxi/
+.tanstack/
+*.local
+
+# Variáveis de ambiente — nunca versionar.
+# A SUPABASE_SERVICE_ROLE_KEY dá acesso total ao banco, ignorando o RLS.
+.env
+.env.*
+!.env.example
+
+# Plataformas
+.vercel/
+.netlify/
+
+# Cache de ferramentas
+.eslintcache
+*.tsbuildinfo
+
+# Supabase local
+supabase/.branches/
+supabase/.temp/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editores e SO
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
