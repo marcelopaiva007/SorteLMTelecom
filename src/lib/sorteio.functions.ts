@@ -172,37 +172,34 @@ export const carregarPainel = createServerFn({ method: "POST" }).handler(
         totalCreditos: 0,
         saldo: 0,
         meusNumeros: [],
-        ocupados: [],
+        ocupados: 0,
         participantes: 0,
       };
     }
 
-    const [creditosRes, meusRes, ocupadosRes, participantesRes, regras] =
-      await Promise.all([
-        supabaseAdmin
-          .from("creditos")
-          .select(
-            "id, quantidade, criado_em, eventos(tipo, competencia, ocorrido_em)",
-          )
-          .eq("cliente_id", cliente.id)
-          .eq("campanha_id", campanha.id)
-          .order("criado_em", { ascending: false }),
-        supabaseAdmin
-          .from("numeros")
-          .select("numero, escolhido_em, protocolo")
-          .eq("cliente_id", cliente.id)
-          .eq("campanha_id", campanha.id)
-          .order("numero"),
-        supabaseAdmin
-          .from("numeros")
-          .select("numero")
-          .eq("campanha_id", campanha.id),
-        supabaseAdmin
-          .from("creditos")
-          .select("cliente_id")
-          .eq("campanha_id", campanha.id),
-        s.regrasDaCampanha(campanha.id),
-      ]);
+    const [creditosRes, meusRes, estatisticasRes, regras] = await Promise.all([
+      supabaseAdmin
+        .from("creditos")
+        .select(
+          "id, quantidade, criado_em, eventos(tipo, competencia, ocorrido_em)",
+        )
+        .eq("cliente_id", cliente.id)
+        .eq("campanha_id", campanha.id)
+        .order("criado_em", { ascending: false }),
+      supabaseAdmin
+        .from("numeros")
+        .select("numero, escolhido_em, protocolo")
+        .eq("cliente_id", cliente.id)
+        .eq("campanha_id", campanha.id)
+        .order("numero"),
+      // Contagem no banco. Antes vinham todas as linhas de `numeros` e de
+      // `creditos` para serem contadas aqui — e vinham cortadas no limite da
+      // API, então a cartela mostrava como livre número que já tinha dono.
+      supabaseAdmin.rpc("estatisticas_campanha", {
+        p_campanha_id: campanha.id,
+      }),
+      s.regrasDaCampanha(campanha.id),
+    ]);
 
     const creditos = (creditosRes.data ?? []).map((c) => {
       const ev = c.eventos as unknown as {
@@ -222,10 +219,10 @@ export const carregarPainel = createServerFn({ method: "POST" }).handler(
 
     const totalCreditos = creditos.reduce((a, c) => a + c.quantidade, 0);
     const meusNumeros = meusRes.data ?? [];
-    const ocupados = (ocupadosRes.data ?? []).map((n) => n.numero);
-    const participantes = new Set(
-      (participantesRes.data ?? []).map((c) => c.cliente_id),
-    ).size;
+    const estatisticas = (estatisticasRes.data ?? {}) as {
+      ocupados?: number;
+      participantes?: number;
+    };
 
     return {
       ok: true as const,
@@ -242,11 +239,68 @@ export const carregarPainel = createServerFn({ method: "POST" }).handler(
       totalCreditos,
       saldo: totalCreditos - meusNumeros.length,
       meusNumeros,
-      ocupados,
-      participantes,
+      ocupados: estatisticas.ocupados ?? 0,
+      participantes: estatisticas.participantes ?? 0,
     };
   },
 );
+
+// A cartela navega de centena em centena; busca só a centena que está na tela.
+export const ocupadosDoBloco = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    z.object({ inicio: z.number().int().min(0).max(999999) }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const s = await import("./sorteio.server");
+    const { supabaseAdmin } =
+      await import("@/integrations/supabase/client.server");
+    if (!(await s.clienteDaSessao()))
+      return { ok: false as const, numeros: [] };
+
+    const campanha = await s.campanhaAtual();
+    if (!campanha) return { ok: false as const, numeros: [] };
+
+    const { data: numeros } = await supabaseAdmin.rpc(
+      "numeros_ocupados_bloco",
+      {
+        p_campanha_id: campanha.id,
+        p_inicio: data.inicio,
+        p_fim: data.inicio + 99,
+      },
+    );
+    return { ok: true as const, numeros: numeros ?? [] };
+  });
+
+// "Sorte da casa" sai do navegador. Antes o celular do cliente montava um array
+// de até 10^6 posições e fazia busca linear dentro do laço.
+export const sortearLivres = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    z.object({ quantidade: z.number().int().min(1).max(200) }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const s = await import("./sorteio.server");
+    const { supabaseAdmin } =
+      await import("@/integrations/supabase/client.server");
+    if (!(await s.clienteDaSessao()))
+      return { ok: false as const, erro: "Sessão expirada. Entre novamente." };
+
+    const campanha = await s.campanhaAtual();
+    if (!campanha)
+      return {
+        ok: false as const,
+        erro: "Nenhuma campanha aberta no momento.",
+      };
+
+    const { data: numeros, error } = await supabaseAdmin.rpc(
+      "sortear_numeros_livres",
+      { p_campanha_id: campanha.id, p_quantidade: data.quantidade },
+    );
+    if (error) {
+      console.error("[sortear_numeros_livres]", error);
+      return { ok: false as const, erro: "Não foi possível sortear agora." };
+    }
+    return { ok: true as const, numeros: numeros ?? [] };
+  });
 
 export const escolherNumeros = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>

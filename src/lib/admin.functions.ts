@@ -34,35 +34,38 @@ export const adminResumo = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     await exigirAdmin(supabase, userId);
 
-    const [campanhas, regras, config, sinc, clientes, eventos, bloqueados] =
-      await Promise.all([
-        supabase
-          .from("campanhas")
-          .select("*")
-          .order("inicio", { ascending: false }),
-        supabase.from("regras").select("*").order("tipo_evento"),
-        supabase
-          .from("configuracoes")
-          .select("chave, valor, descricao")
-          .order("chave"),
-        supabase
-          .from("sincronizacoes")
-          .select("*")
-          .order("iniciado_em", { ascending: false })
-          .limit(20),
-        supabase.from("clientes").select("id, sincronizado_em"),
-        supabase.from("eventos").select("id, tipo, ocorrido_em"),
-        supabase.from("eventos_bloqueados").select("id, motivo, ocorrido_em"),
-      ]);
+    // Os contadores são contados no banco. Antes vinham as tabelas inteiras de
+    // clientes, eventos e bloqueados para serem contadas aqui — e vinham
+    // cortadas no limite da API, então os números do painel ficavam falsos a
+    // partir de mil linhas. "Hoje" também era calculado em UTC, três horas à
+    // frente do dia de Brasília.
+    const [campanhas, regras, config, sinc, operacional] = await Promise.all([
+      supabase
+        .from("campanhas")
+        .select("*")
+        .order("inicio", { ascending: false }),
+      supabase.from("regras").select("*").order("tipo_evento"),
+      supabase
+        .from("configuracoes")
+        .select("chave, valor, descricao")
+        .order("chave"),
+      supabase
+        .from("sincronizacoes")
+        .select("*")
+        .order("iniciado_em", { ascending: false })
+        .limit(20),
+      supabase.rpc("resumo_operacional"),
+    ]);
 
-    const hoje = new Date().toISOString().slice(0, 10);
-    const eventosHoje = (eventos.data ?? []).filter(
-      (e: any) => String(e.ocorrido_em).slice(0, 10) === hoje,
-    ).length;
+    const contagens = (operacional.data ?? {}) as {
+      clientes?: number;
+      eventos?: number;
+      eventos_hoje?: number;
+      bloqueados_duplicados?: number;
+    };
+
     const duplicadosBarrados =
-      (bloqueados.data ?? []).filter(
-        (b: any) => b.motivo === "duplicado_idempotente",
-      ).length +
+      (contagens.bloqueados_duplicados ?? 0) +
       (sinc.data ?? []).reduce(
         (a: number, s: any) => a + (s.duplicados_barrados ?? 0),
         0,
@@ -79,12 +82,12 @@ export const adminResumo = createServerFn({ method: "GET" })
       regras: regras.data ?? [],
       configuracoes: config.data ?? [],
       sincronizacoes: sinc.data ?? [],
-      clientesEspelhados: (clientes.data ?? []).length,
+      clientesEspelhados: contagens.clientes ?? 0,
       ultimaLeitura: (sinc.data ?? [])[0]?.iniciado_em ?? null,
-      eventosHoje,
+      eventosHoje: contagens.eventos_hoje ?? 0,
       duplicadosBarrados,
       falhasSeguidas,
-      totalEventos: (eventos.data ?? []).length,
+      totalEventos: contagens.eventos ?? 0,
     };
   });
 
@@ -97,14 +100,11 @@ export const adminAuditoria = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await exigirAdmin(supabase, userId);
 
+    // A busca dos créditos roda no banco. Antes o filtro era aplicado em
+    // JavaScript depois de um `limit(500)`, então só encontrava dentro dos 500
+    // registros mais recentes — quem procurasse um cliente antigo não achava.
     const [creditosRes, bloqRes, acoesRes] = await Promise.all([
-      supabase
-        .from("creditos")
-        .select(
-          "id, quantidade, criado_em, clientes(nome, cpf_cnpj, erp_id), eventos(tipo, competencia, ocorrido_em, chave_idempotente)",
-        )
-        .order("criado_em", { ascending: false })
-        .limit(500),
+      supabase.rpc("buscar_creditos", { p_busca: data.busca, p_limite: 500 }),
       supabase
         .from("eventos_bloqueados")
         .select(
@@ -123,21 +123,17 @@ export const adminAuditoria = createServerFn({ method: "POST" })
     const filtra = (texto: string) =>
       !termo || texto.toLowerCase().includes(termo);
 
-    const creditos = (creditosRes.data ?? [])
-      .map((c: any) => ({
-        id: c.id,
-        quantidade: c.quantidade,
-        criado_em: c.criado_em,
-        nome: c.clientes?.nome ?? "—",
-        documento: c.clientes?.cpf_cnpj ?? "",
-        erpId: c.clientes?.erp_id ?? "",
-        tipo: c.eventos?.tipo ?? "",
-        competencia: c.eventos?.competencia ?? null,
-        chave: c.eventos?.chave_idempotente ?? "",
-      }))
-      .filter((c: any) =>
-        filtra(`${c.nome} ${c.documento} ${c.erpId} ${c.tipo} ${c.chave}`),
-      );
+    const creditos = (creditosRes.data ?? []).map((c: any) => ({
+      id: c.id,
+      quantidade: c.quantidade,
+      criado_em: c.criado_em,
+      nome: c.nome ?? "—",
+      documento: c.documento ?? "",
+      erpId: c.erp_id ?? "",
+      tipo: c.tipo ?? "",
+      competencia: c.competencia ?? null,
+      chave: c.chave ?? "",
+    }));
 
     const bloqueados = (bloqRes.data ?? [])
       .map((b: any) => ({
@@ -174,23 +170,12 @@ export const adminEfeito = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     await exigirAdmin(supabase, userId);
 
-    const [eventosRes, campanhasRes] = await Promise.all([
-      supabase.from("eventos").select("tipo, ocorrido_em"),
+    // Agregação por mês feita no banco. Antes a tabela de eventos inteira vinha
+    // para ser somada aqui — truncada no limite da API, o gráfico ficava curto.
+    const [efeitoRes, campanhasRes] = await Promise.all([
+      supabase.rpc("efeito_no_negocio"),
       supabase.from("campanhas").select("inicio, fim, status").order("inicio"),
     ]);
-
-    const meses = new Map<string, Record<string, number>>();
-    for (const e of eventosRes.data ?? []) {
-      const mes = String(e.ocorrido_em).slice(0, 7);
-      const linha = meses.get(mes) ?? {
-        assinatura: 0,
-        reativacao: 0,
-        quitacao_debito: 0,
-        mensalidade_em_dia: 0,
-      };
-      linha[e.tipo as string] = (linha[e.tipo as string] ?? 0) + 1;
-      meses.set(mes, linha);
-    }
 
     const ativa =
       (campanhasRes.data ?? []).find((c: any) => c.status === "aberta") ?? null;
@@ -199,16 +184,14 @@ export const adminEfeito = createServerFn({ method: "GET" })
       mes >= String(ativa.inicio).slice(0, 7) &&
       mes <= String(ativa.fim).slice(0, 7);
 
-    const linhas = Array.from(meses.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([mes, v]) => ({
-        mes,
-        assinatura: v["assinatura"] ?? 0,
-        reativacao: v["reativacao"] ?? 0,
-        quitacao_debito: v["quitacao_debito"] ?? 0,
-        mensalidade_em_dia: v["mensalidade_em_dia"] ?? 0,
-        comSorteio: dentro(mes),
-      }));
+    const linhas = ((efeitoRes.data ?? []) as any[]).map((l) => ({
+      mes: l.mes as string,
+      assinatura: Number(l.assinatura ?? 0),
+      reativacao: Number(l.reativacao ?? 0),
+      quitacao_debito: Number(l.quitacao_debito ?? 0),
+      mensalidade_em_dia: Number(l.mensalidade_em_dia ?? 0),
+      comSorteio: dentro(l.mes as string),
+    }));
 
     return { linhas };
   });

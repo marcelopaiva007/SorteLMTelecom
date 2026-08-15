@@ -551,7 +551,35 @@ export type Database = {
         }
         Returns: Json
       }
+      buscar_creditos: {
+        Args: { p_busca?: string; p_limite?: number }
+        Returns: {
+          chave: string
+          competencia: string | null
+          criado_em: string
+          documento: string
+          erp_id: string
+          id: string
+          nome: string
+          quantidade: number
+          tipo: Database["public"]["Enums"]["tipo_evento"]
+        }[]
+      }
       conceder_creditos: { Args: { p_evento_id: string }; Returns: Json }
+      efeito_no_negocio: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          assinatura: number
+          mensalidade_em_dia: number
+          mes: string
+          quitacao_debito: number
+          reativacao: number
+        }[]
+      }
+      estatisticas_campanha: {
+        Args: { p_campanha_id: string }
+        Returns: Json
+      }
       consumir_codigo_acesso: {
         Args: { p_cliente_id: string; p_codigo: string }
         Returns: boolean
@@ -574,6 +602,15 @@ export type Database = {
       }
       is_admin: { Args: { _user_id?: string }; Returns: boolean }
       limpar_expirados: { Args: Record<PropertyKey, never>; Returns: undefined }
+      numeros_ocupados_bloco: {
+        Args: { p_campanha_id: string; p_fim: number; p_inicio: number }
+        Returns: number[]
+      }
+      resumo_operacional: { Args: Record<PropertyKey, never>; Returns: Json }
+      sortear_numeros_livres: {
+        Args: { p_campanha_id: string; p_quantidade: number }
+        Returns: number[]
+      }
       processar_eventos_pendentes: {
         Args: { p_limite?: number }
         Returns: Json

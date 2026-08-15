@@ -21,7 +21,18 @@
   --radius-3xl: 0px;
   --radius-4xl: 0px;
 
-  --font-condensada: "Arial Narrow", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  /*
+   * Pilha condensada que existe de verdade no aparelho do cliente.
+   * "Arial Narrow" sozinha não existe em Android nem em iOS, então toda a
+   * identidade tipográfica caía para Arial comum justamente onde 95% das
+   * pessoas abrem o site. Roboto Condensed cobre Android, Avenir Next
+   * Condensed cobre iOS, e Arial Narrow segue atendendo o desktop.
+   * Uma fonte auto-hospedada seria melhor ainda — ver docs/AUDITORIA.
+   */
+  --font-condensada:
+    "Roboto Condensed", "Avenir Next Condensed", "Arial Narrow",
+    "Helvetica Neue Condensed", "Liberation Sans Narrow", "Helvetica Neue",
+    Helvetica, Arial, sans-serif;
   --font-mono:
     ui-monospace, "SF Mono", "Roboto Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
 
@@ -147,13 +158,21 @@
 @layer base {
   * {
     border-color: var(--color-border);
-    border-radius: 0 !important;
   }
 
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     -webkit-font-smoothing: antialiased;
+  }
+
+  /*
+   * Foco visível. Vários campos usam `outline-none` para não brigar com a
+   * borda do design — sem um substituto, quem navega por teclado fica cego.
+   */
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 1px;
   }
 
   h1,

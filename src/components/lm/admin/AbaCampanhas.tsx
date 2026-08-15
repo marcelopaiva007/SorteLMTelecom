@@ -1,7 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { adminResumo, salvarCampanha, abrirCampanha } from "@/lib/admin.functions";
+import {
+  adminResumo,
+  salvarCampanha,
+  abrirCampanha,
+} from "@/lib/admin.functions";
 import { Aviso, Campo, Painel, botao } from "./ui";
 
 type Campanha = {
@@ -33,7 +37,10 @@ export function AbaCampanhas() {
   const abrir = useServerFn(abrirCampanha);
   const qc = useQueryClient();
 
-  const { data } = useQuery({ queryKey: ["admin", "resumo"], queryFn: () => resumo({}) });
+  const { data } = useQuery({
+    queryKey: ["admin", "resumo"],
+    queryFn: () => resumo({}),
+  });
   const campanhas = (data?.campanhas ?? []) as Campanha[];
 
   const [editando, setEditando] = useState<string | "nova" | null>(null);
@@ -41,7 +48,8 @@ export function AbaCampanhas() {
   const [erro, setErro] = useState<string | null>(null);
 
   const mutar = useMutation({
-    mutationFn: (payload: typeof VAZIA & { id?: string }) => salvar({ data: payload }),
+    mutationFn: (payload: typeof VAZIA & { id?: string }) =>
+      salvar({ data: payload }),
 
     onSuccess: (r) => {
       if (r.ok) {
@@ -91,13 +99,17 @@ export function AbaCampanhas() {
               <tr key={c.id} className="border-b border-border/60">
                 <td className="py-2 pr-2">
                   <div className="titulo text-[13px]">{c.nome}</div>
-                  <div className="text-[11px] text-muted-foreground">{c.premio}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {c.premio}
+                  </div>
                 </td>
                 <td className="num text-[12px] text-muted-foreground">
-                  {c.inicio.slice(8, 10)}/{c.inicio.slice(5, 7)} — {c.fim.slice(8, 10)}/
-                  {c.fim.slice(5, 7)}
+                  {c.inicio.slice(8, 10)}/{c.inicio.slice(5, 7)} —{" "}
+                  {c.fim.slice(8, 10)}/{c.fim.slice(5, 7)}
                 </td>
-                <td className="text-[11px] uppercase tracking-wide">{c.status}</td>
+                <td className="text-[11px] uppercase tracking-wide">
+                  {c.status}
+                </td>
                 <td className="py-2 text-right">
                   <button className={botao.link} onClick={() => editar(c)}>
                     editar
@@ -128,7 +140,9 @@ export function AbaCampanhas() {
       </Painel>
 
       {editando && (
-        <Painel titulo={editando === "nova" ? "Nova campanha" : "Editar campanha"}>
+        <Painel
+          titulo={editando === "nova" ? "Nova campanha" : "Editar campanha"}
+        >
           {erro && <Aviso tom="destaque">{erro}</Aviso>}
           <div className="grid gap-3 md:grid-cols-2">
             <Campo label="Nome">
@@ -166,7 +180,9 @@ export function AbaCampanhas() {
                 type="date"
                 className={botao.input + " num"}
                 value={form.data_apuracao}
-                onChange={(e) => setForm({ ...form, data_apuracao: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, data_apuracao: e.target.value })
+                }
               />
             </Campo>
             <Campo label="Dígitos da cartela">
@@ -177,11 +193,15 @@ export function AbaCampanhas() {
                 className={botao.input + " num"}
                 value={form.digitos_cartela}
                 onChange={(e) =>
-                  setForm({ ...form, digitos_cartela: Number(e.target.value) || 6 })
+                  setForm({
+                    ...form,
+                    digitos_cartela: Number(e.target.value) || 6,
+                  })
                 }
               />
               <span className="text-[11px] text-muted-foreground">
-                {Math.pow(10, form.digitos_cartela).toLocaleString("pt-BR")} números na cartela
+                {Math.pow(10, form.digitos_cartela).toLocaleString("pt-BR")}{" "}
+                números na cartela
               </span>
             </Campo>
           </div>
@@ -193,17 +213,24 @@ export function AbaCampanhas() {
                 disabled={travado}
                 className={botao.input + (travado ? " opacity-70" : "")}
                 value={form.criterio_apuracao}
-                onChange={(e) => setForm({ ...form, criterio_apuracao: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, criterio_apuracao: e.target.value })
+                }
               />
             </Campo>
             {travado && emEdicao && (
               <Aviso tom="destaque">
-                <span className="titulo text-[11px] tracking-widest">Critério congelado</span> desde{" "}
+                <span className="titulo text-[11px] tracking-widest">
+                  Critério congelado
+                </span>{" "}
+                desde{" "}
                 <span className="num">
-                  {new Date(emEdicao.criterio_congelado_em).toLocaleString("pt-BR")}
+                  {new Date(emEdicao.criterio_congelado_em).toLocaleString(
+                    "pt-BR",
+                  )}
                 </span>
-                . Depois que a campanha abre o critério não pode mais ser editado — é o que sustenta
-                o selo de campanha oficial.
+                . Depois que a campanha abre o critério não pode mais ser
+                editado — é o que sustenta o selo de campanha oficial.
               </Aviso>
             )}
           </div>
@@ -221,7 +248,10 @@ export function AbaCampanhas() {
             >
               Salvar
             </button>
-            <button className={botao.secundario} onClick={() => setEditando(null)}>
+            <button
+              className={botao.secundario}
+              onClick={() => setEditando(null)}
+            >
               Cancelar
             </button>
           </div>

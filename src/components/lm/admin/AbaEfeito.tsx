@@ -3,7 +3,20 @@ import { useServerFn } from "@tanstack/react-start";
 import { adminEfeito } from "@/lib/admin.functions";
 import { Aviso, Indicador, Painel } from "./ui";
 
-const MES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const MES = [
+  "jan",
+  "fev",
+  "mar",
+  "abr",
+  "mai",
+  "jun",
+  "jul",
+  "ago",
+  "set",
+  "out",
+  "nov",
+  "dez",
+];
 
 function rotulo(mes: string) {
   const [ano, m] = mes.split("-");
@@ -12,16 +25,25 @@ function rotulo(mes: string) {
 
 export function AbaEfeito() {
   const fn = useServerFn(adminEfeito);
-  const { data } = useQuery({ queryKey: ["admin", "efeito"], queryFn: () => fn({}) });
+  const { data } = useQuery({
+    queryKey: ["admin", "efeito"],
+    queryFn: () => fn({}),
+  });
   const linhas = data?.linhas ?? [];
 
   const com = linhas.filter((l) => l.comSorteio);
   const sem = linhas.filter((l) => !l.comSorteio);
 
-  const media = (arr: typeof linhas, campo: "reativacao" | "quitacao_debito" | "mensalidade_em_dia") =>
+  const media = (
+    arr: typeof linhas,
+    campo: "reativacao" | "quitacao_debito" | "mensalidade_em_dia",
+  ) =>
     arr.length ? arr.reduce((a, l) => a + (l[campo] ?? 0), 0) / arr.length : 0;
 
-  const cartao = (campo: "reativacao" | "quitacao_debito" | "mensalidade_em_dia", nome: string) => {
+  const cartao = (
+    campo: "reativacao" | "quitacao_debito" | "mensalidade_em_dia",
+    nome: string,
+  ) => {
     const a = media(com, campo);
     const b = media(sem, campo);
     const variacao = b > 0 ? ((a - b) / b) * 100 : 0;
@@ -37,7 +59,9 @@ export function AbaEfeito() {
 
   const maior = Math.max(
     1,
-    ...linhas.map((l) => l.reativacao + l.quitacao_debito + l.mensalidade_em_dia),
+    ...linhas.map(
+      (l) => l.reativacao + l.quitacao_debito + l.mensalidade_em_dia,
+    ),
   );
 
   return (
@@ -61,7 +85,8 @@ export function AbaEfeito() {
           </thead>
           <tbody>
             {linhas.map((l) => {
-              const total = l.reativacao + l.quitacao_debito + l.mensalidade_em_dia;
+              const total =
+                l.reativacao + l.quitacao_debito + l.mensalidade_em_dia;
               return (
                 <tr key={l.mes} className="border-b border-border/60">
                   <td className="num py-2">
@@ -78,7 +103,11 @@ export function AbaEfeito() {
                   <td className="pl-4">
                     <div className="h-2 w-full border border-border bg-muted">
                       <div
-                        className={l.comSorteio ? "h-full bg-primary" : "h-full bg-muted-foreground/40"}
+                        className={
+                          l.comSorteio
+                            ? "h-full bg-primary"
+                            : "h-full bg-muted-foreground/40"
+                        }
                         style={{ width: `${(total / maior) * 100}%` }}
                       />
                     </div>
@@ -89,8 +118,8 @@ export function AbaEfeito() {
           </tbody>
         </table>
         <Aviso>
-          Comparação entre a média mensal dos meses com sorteio ativo e a dos meses anteriores, a
-          partir dos eventos espelhados do ERP.
+          Comparação entre a média mensal dos meses com sorteio ativo e a dos
+          meses anteriores, a partir dos eventos espelhados do ERP.
         </Aviso>
       </Painel>
     </div>

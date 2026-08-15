@@ -65,7 +65,7 @@ function Saldo() {
   }
 
   const total = Math.pow(10, campanha.digitos_cartela);
-  const preenchida = (ocupados.length / total) * 100;
+  const preenchida = (ocupados / total) * 100;
 
   // A escada vem da tabela de regras, a mesma que o motor de crédito lê.
   const regraMensalidade = regras.find(
@@ -126,7 +126,7 @@ function Saldo() {
             <Progresso valor={preenchida} />
             <div className="flex justify-between text-[11px] text-muted-foreground">
               <span className="num">
-                {ocupados.length} de {total} números da cartela
+                {ocupados} de {total} números da cartela
               </span>
               <span className="num">{participantes} participantes</span>
             </div>

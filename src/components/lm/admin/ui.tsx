@@ -10,7 +10,13 @@ export const botao = {
     "w-full border border-border bg-card px-2 py-1.5 text-[13px] text-foreground outline-none focus:border-primary",
 };
 
-export function Painel({ titulo, children }: { titulo: string; children: ReactNode }) {
+export function Painel({
+  titulo,
+  children,
+}: {
+  titulo: string;
+  children: ReactNode;
+}) {
   return (
     <section className="border border-border bg-card p-4">
       <h2 className="titulo mb-3 border-b border-border pb-2 text-[14px] tracking-tight">
@@ -21,10 +27,18 @@ export function Painel({ titulo, children }: { titulo: string; children: ReactNo
   );
 }
 
-export function Campo({ label, children }: { label: string; children: ReactNode }) {
+export function Campo({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
       {children}
     </label>
   );
@@ -41,7 +55,11 @@ export function Aviso({
     tom === "destaque"
       ? "border-destaque bg-destaque/10 text-destaque"
       : "border-border bg-muted text-muted-foreground";
-  return <div className={`mt-3 border ${cor} p-3 text-[12px] leading-snug`}>{children}</div>;
+  return (
+    <div className={`mt-3 border ${cor} p-3 text-[12px] leading-snug`}>
+      {children}
+    </div>
+  );
 }
 
 export function Indicador({
@@ -59,11 +77,17 @@ export function Indicador({
     <div
       className={`border p-3 ${alerta ? "border-destaque bg-destaque/10" : "border-border bg-card"}`}
     >
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{rotulo}</div>
-      <div className={`num mt-1 text-2xl ${alerta ? "text-destaque" : "text-foreground"}`}>
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        {rotulo}
+      </div>
+      <div
+        className={`num mt-1 text-2xl ${alerta ? "text-destaque" : "text-foreground"}`}
+      >
         {valor}
       </div>
-      {nota && <div className="mt-1 text-[11px] text-muted-foreground">{nota}</div>}
+      {nota && (
+        <div className="mt-1 text-[11px] text-muted-foreground">{nota}</div>
+      )}
     </div>
   );
 }

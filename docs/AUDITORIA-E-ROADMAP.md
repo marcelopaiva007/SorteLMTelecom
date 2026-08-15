@@ -18,8 +18,20 @@ Base: commit `178b855` · Análise em 15/08/2026
 > `auditoria_admin`, e a campanha do cliente é resolvida por data em vez de um
 > UUID fixo no código.
 >
-> **Continuam abertos:** consultas truncadas em 1.000 linhas (Onda 3), conector
-> do ERP, acabamento (Onda 4) e a autorização da SPA/MF.
+> **Onda 3 (escala).** Contar e agregar virou trabalho do banco: a cartela busca
+> só a centena visível, os totais e o número de participantes vêm de função SQL,
+> "sorte da casa" sorteia no servidor em vez de montar um array de 10⁶ posições
+> no celular do cliente, os contadores do painel e a aba de efeito são agregados
+> em SQL, e a busca da auditoria procura na base inteira em vez de dentro dos
+> 500 registros mais recentes.
+>
+> **Onda 4 (acabamento).** Pilha tipográfica condensada que existe em Android e
+> iOS, `lang="pt-BR"`, telas de 404 e de erro em português, foco de teclado
+> visível, alvos de toque de 44px na cartela, `og:image` para o link
+> compartilhado no WhatsApp, testes do núcleo de regras e CI no GitHub Actions.
+>
+> **Continuam abertos:** conector do ERP, provedor de WhatsApp e a autorização
+> da SPA/MF — os três dependem de decisão ou contrato, não de código.
 > O envio real por WhatsApp continua pendente de decisão do provedor: até lá o
 > ambiente de demonstração precisa de `SORTEIO_MODO_DEMO=1` para que alguém
 > consiga entrar.

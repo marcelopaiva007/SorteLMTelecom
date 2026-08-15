@@ -8,11 +8,12 @@ function useEmpresa() {
     queryKey: ["configuracoes-publicas"],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      const { data } = await supabase.from("configuracoes").select("chave, valor");
-      return Object.fromEntries((data ?? []).map((c) => [c.chave, c.valor])) as Record<
-        string,
-        string
-      >;
+      const { data } = await supabase
+        .from("configuracoes")
+        .select("chave, valor");
+      return Object.fromEntries(
+        (data ?? []).map((c) => [c.chave, c.valor]),
+      ) as Record<string, string>;
     },
   });
   return {
@@ -46,7 +47,16 @@ export function Marca({ altura = "h-8" }: { altura?: string }) {
 }
 
 export function SeloOficial() {
-  const { cnpj, razaoSocial, endereco, telefone, sac, email, site, atendimento } = useEmpresa();
+  const {
+    cnpj,
+    razaoSocial,
+    endereco,
+    telefone,
+    sac,
+    email,
+    site,
+    atendimento,
+  } = useEmpresa();
   return (
     <div className="border border-primary/40 bg-primary/5 px-3 py-2">
       <div className="flex items-start gap-2">
@@ -100,7 +110,6 @@ export function SeloOficial() {
   );
 }
 
-
 export function CriterioCongelado({
   criterio,
   congeladoEm,
@@ -121,7 +130,9 @@ export function CriterioCongelado({
           </span>
         </span>
       </div>
-      <p className="text-[12px] leading-snug text-muted-foreground">{criterio}</p>
+      <p className="text-[12px] leading-snug text-muted-foreground">
+        {criterio}
+      </p>
     </div>
   );
 }
@@ -159,7 +170,6 @@ function Rodape() {
 }
 
 const ABAS = [
-
   { to: "/saldo", label: "Saldo" },
   { to: "/cartela", label: "Cartela" },
   { to: "/meus-numeros", label: "Meus nºs" },
@@ -167,7 +177,13 @@ const ABAS = [
   { to: "/ajustes", label: "Ajustes" },
 ] as const;
 
-export function Layout({ children, comNav = true }: { children: ReactNode; comNav?: boolean }) {
+export function Layout({
+  children,
+  comNav = true,
+}: {
+  children: ReactNode;
+  comNav?: boolean;
+}) {
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col border-x border-border bg-background">
       <header className="sticky top-0 z-20 border-b border-border bg-card px-4 py-3">
@@ -196,7 +212,6 @@ export function Layout({ children, comNav = true }: { children: ReactNode; comNa
         </p>
         <Rodape />
       </footer>
-
     </div>
   );
 }

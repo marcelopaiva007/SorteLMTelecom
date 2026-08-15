@@ -8,7 +8,10 @@ export function AbaAjustes() {
   const resumo = useServerFn(adminResumo);
   const salvar = useServerFn(salvarConfiguracao);
   const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: ["admin", "resumo"], queryFn: () => resumo({}) });
+  const { data } = useQuery({
+    queryKey: ["admin", "resumo"],
+    queryFn: () => resumo({}),
+  });
 
   const [valores, setValores] = useState<Record<string, string>>({});
   const [erro, setErro] = useState<string | null>(null);
@@ -16,7 +19,11 @@ export function AbaAjustes() {
 
   useEffect(() => {
     if (data?.configuracoes) {
-      setValores(Object.fromEntries(data.configuracoes.map((c: any) => [c.chave, c.valor])));
+      setValores(
+        Object.fromEntries(
+          data.configuracoes.map((c: any) => [c.chave, c.valor]),
+        ),
+      );
     }
   }, [data]);
 
@@ -56,10 +63,15 @@ export function AbaAjustes() {
           ))}
         </div>
         {erro && <Aviso tom="destaque">{erro}</Aviso>}
-        {salvo && <Aviso>Dados gravados. O selo de campanha oficial já usa o novo valor.</Aviso>}
+        {salvo && (
+          <Aviso>
+            Dados gravados. O selo de campanha oficial já usa o novo valor.
+          </Aviso>
+        )}
         <Aviso>
-          O CNPJ aparece no selo &ldquo;Campanha oficial L&M Telecom&rdquo; em todas as telas do
-          cliente. Substitua o valor fictício pelo CNPJ verdadeiro da L&M Telecom.
+          O CNPJ aparece no selo &ldquo;Campanha oficial L&M Telecom&rdquo; em
+          todas as telas do cliente. Substitua o valor fictício pelo CNPJ
+          verdadeiro da L&M Telecom.
         </Aviso>
         <button
           className={botao.primario + " mt-3"}

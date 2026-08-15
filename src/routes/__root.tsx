@@ -16,17 +16,17 @@ function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
+        <h1 className="num text-7xl font-bold text-foreground">404</h1>
+        <h2 className="mt-4 text-xl">Página não encontrada</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+          O endereço que você abriu não existe ou mudou de lugar.
         </p>
         <div className="mt-6">
           <Link
             to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="titulo inline-flex items-center justify-center border border-primary bg-primary px-4 py-3 text-sm tracking-widest text-primary-foreground"
           >
-            Go home
+            Ir para o início
           </Link>
         </div>
       </div>
@@ -44,11 +44,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
-        </h1>
+        <h1 className="text-xl">Esta página não carregou</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          Alguma coisa falhou do nosso lado. Tente de novo ou volte ao início.
+          Seus números continuam guardados.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -56,15 +55,15 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="titulo inline-flex items-center justify-center border border-primary bg-primary px-4 py-3 text-sm tracking-widest text-primary-foreground"
           >
-            Try again
+            Tentar de novo
           </button>
           <a
             href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            className="titulo inline-flex items-center justify-center border border-border bg-background px-4 py-3 text-sm tracking-widest text-foreground"
           >
-            Go home
+            Ir para o início
           </a>
         </div>
       </div>
@@ -72,38 +71,46 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
-export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  head: () => ({
-    meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Sorteio LM — L&M Telecom" },
-      {
-        name: "description",
-        content:
-          "Sistema de sorteios da L&M Telecom: você ganha números por ser bom cliente e escolhe quais quer. Participar não custa nada.",
-      },
-      { name: "author", content: "L&M Telecom" },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-    links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
-      { rel: "icon", href: "/favicon.png", type: "image/png" },
-    ],
-  }),
-  shellComponent: RootShell,
-  component: RootComponent,
-  notFoundComponent: NotFoundComponent,
-  errorComponent: ErrorComponent,
-});
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
+  {
+    head: () => ({
+      meta: [
+        { charSet: "utf-8" },
+        { name: "viewport", content: "width=device-width, initial-scale=1" },
+        { title: "Sorteio LM — L&M Telecom" },
+        {
+          name: "description",
+          content:
+            "Sistema de sorteios da L&M Telecom: você ganha números por ser bom cliente e escolhe quais quer. Participar não custa nada.",
+        },
+        { name: "author", content: "L&M Telecom" },
+        { property: "og:type", content: "website" },
+        { property: "og:locale", content: "pt_BR" },
+        // A campanha vive de link compartilhado no WhatsApp: sem imagem, o
+        // preview do link fica vazio e o link parece suspeito.
+        { property: "og:image", content: "/marca/simbolo.png" },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:image", content: "/marca/simbolo.png" },
+        { name: "theme-color", content: "#1368C0" },
+      ],
+      links: [
+        {
+          rel: "stylesheet",
+          href: appCss,
+        },
+        { rel: "icon", href: "/favicon.png", type: "image/png" },
+      ],
+    }),
+    shellComponent: RootShell,
+    component: RootComponent,
+    notFoundComponent: NotFoundComponent,
+    errorComponent: ErrorComponent,
+  },
+);
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <head>
         <HeadContent />
       </head>
