@@ -2,6 +2,18 @@
 
 Base: commit `178b855` · Análise em 15/08/2026
 
+> **Estado da execução — Onda 1 concluída (15/08/2026).**
+> Fechados: código de acesso devolvido ao navegador, ausência de limite de
+> tentativas, enumeração da base de clientes, CPF trafegando à toa, sessão em
+> `localStorage` sem revogação, corrida na escolha de números, escolha fora da
+> janela da campanha, faixa de números descolada da cartela e colisão de
+> protocolo. Os riscos 01, 02 e a corrida saíram da lista de impeditivos.
+> **Continuam abertos:** apuração e motor de créditos (Onda 2), consultas
+> truncadas em 1.000 linhas (Onda 3) e a autorização da SPA/MF.
+> O envio real por WhatsApp continua pendente de decisão do provedor: até lá o
+> ambiente de demonstração precisa de `SORTEIO_MODO_DEMO=1` para que alguém
+> consiga entrar.
+
 ---
 
 ## Veredito

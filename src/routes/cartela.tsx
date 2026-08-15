@@ -12,17 +12,22 @@ export const Route = createFileRoute("/cartela")({
       { title: "Cartela — Sorteio LM" },
       {
         name: "description",
-        content: "Escolha seus números na cartela do Sorteio LM. Números ocupados aparecem riscados; o botão Sorte da casa preenche o restante.",
+        content:
+          "Escolha seus números na cartela do Sorteio LM. Números ocupados aparecem riscados; o botão Sorte da casa preenche o restante.",
       },
       { property: "og:title", content: "Cartela — Sorteio LM" },
-      { property: "og:description", content: "Escolha livremente seus números, como numa rifa — mas de graça." },
+      {
+        property: "og:description",
+        content:
+          "Escolha livremente seus números, como numa rifa — mas de graça.",
+      },
     ],
   }),
   component: Cartela,
 });
 
 function Cartela() {
-  const { data, isLoading, token, refetch } = usePainel();
+  const { data, isLoading, refetch } = usePainel();
   const navigate = useNavigate();
   const confirmar = useServerFn(escolherNumeros);
   const [bloco, setBloco] = useState(0);
@@ -77,10 +82,10 @@ function Cartela() {
   }
 
   async function enviar() {
-    if (!token || !selecao.length) return;
+    if (!selecao.length) return;
     setEnviando(true);
     setErro(null);
-    const r = await confirmar({ data: { token, numeros: selecao } });
+    const r = await confirmar({ data: { numeros: selecao } });
     setEnviando(false);
     if (!r.ok) {
       setErro(r.erro);
@@ -88,7 +93,10 @@ function Cartela() {
       return;
     }
     setSelecao([]);
-    navigate({ to: "/comprovante/$protocolo", params: { protocolo: r.protocolo } });
+    navigate({
+      to: "/comprovante/$protocolo",
+      params: { protocolo: r.protocolo },
+    });
   }
 
   const inicio = bloco * 100;

@@ -122,6 +122,8 @@ export type Database = {
           criado_em: string
           expira_em: string
           id: string
+          invalidado_em: string | null
+          tentativas: number
           usado_em: string | null
         }
         Insert: {
@@ -130,6 +132,8 @@ export type Database = {
           criado_em?: string
           expira_em: string
           id?: string
+          invalidado_em?: string | null
+          tentativas?: number
           usado_em?: string | null
         }
         Update: {
@@ -138,6 +142,8 @@ export type Database = {
           criado_em?: string
           expira_em?: string
           id?: string
+          invalidado_em?: string | null
+          tentativas?: number
           usado_em?: string | null
         }
         Relationships: [
@@ -298,6 +304,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      limites_acesso: {
+        Row: {
+          chave: string
+          contador: number
+          janela_inicio: string
+        }
+        Insert: {
+          chave: string
+          contador?: number
+          janela_inicio?: string
+        }
+        Update: {
+          chave?: string
+          contador?: number
+          janela_inicio?: string
+        }
+        Relationships: []
       }
       numeros: {
         Row: {
@@ -479,7 +503,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      consumir_codigo_acesso: {
+        Args: { p_cliente_id: string; p_codigo: string }
+        Returns: boolean
+      }
+      consumir_limite: {
+        Args: { p_chave: string; p_janela_segundos: number; p_maximo: number }
+        Returns: boolean
+      }
+      emitir_codigo_acesso: {
+        Args: { p_cliente_id: string; p_codigo: string; p_expira_em: string }
+        Returns: undefined
+      }
+      escolher_numeros: {
+        Args: {
+          p_campanha_id: string
+          p_cliente_id: string
+          p_numeros: number[]
+        }
+        Returns: Json
+      }
       is_admin: { Args: { _user_id?: string }; Returns: boolean }
+      limpar_expirados: { Args: Record<PropertyKey, never>; Returns: undefined }
     }
     Enums: {
       status_campanha: "rascunho" | "aberta" | "encerrada" | "apurada"

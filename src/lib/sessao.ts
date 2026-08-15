@@ -1,17 +1,8 @@
-const CHAVE = "sorteio_lm_token";
-
-export function lerToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(CHAVE);
-}
-
-export function salvarToken(token: string) {
-  window.localStorage.setItem(CHAVE, token);
-}
-
-export function limparToken() {
-  window.localStorage.removeItem(CHAVE);
-}
+// Formatação das telas do cliente.
+//
+// O token de sessão não mora mais aqui: vive num cookie httpOnly, que o
+// navegador reenvia sozinho e o JavaScript da página não consegue ler.
+// Ver src/lib/sorteio.server.ts.
 
 export function formatarNumero(n: number, digitos = 4) {
   return String(n).padStart(digitos, "0");
@@ -43,5 +34,7 @@ export function dataHoraBR(iso: string) {
 }
 
 export function dataBR(iso: string) {
-  return new Date(iso + (iso.length === 10 ? "T12:00:00" : "")).toLocaleDateString("pt-BR");
+  return new Date(
+    iso + (iso.length === 10 ? "T12:00:00" : ""),
+  ).toLocaleDateString("pt-BR");
 }

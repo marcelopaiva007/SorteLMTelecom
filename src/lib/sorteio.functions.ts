@@ -3,96 +3,167 @@ import { z } from "zod";
 
 const docSchema = z.object({ documento: z.string().trim().min(11).max(20) });
 
+// Mensagem única para todos os desfechos de "pedi um código".
+//
+// Antes, a tela dizia se o CPF era ou não cliente da LM e devolvia nome e final
+// do WhatsApp — sem nenhuma autenticação. Dava para varrer CPFs e montar uma
+// lista de assinantes com nome e telefone. Agora a resposta é sempre igual:
+// quem é cliente recebe a mensagem, quem não é fica sem saber que não é.
+const RESPOSTA_NEUTRA =
+  "Se este CPF/CNPJ for de cliente da L&M Telecom, enviamos um código de 6 dígitos para o WhatsApp cadastrado no contrato.";
+
 export const solicitarCodigo = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => docSchema.parse(d))
   .handler(async ({ data }) => {
     const s = await import("./sorteio.server");
-    const cliente = await s.clientePorDocumento(data.documento);
-    if (!cliente) {
-      return { ok: false as const, erro: "Não encontramos esse CPF/CNPJ na base da L&M Telecom." };
-    }
-    if (cliente.autoexcluido_em) {
+    const { enviarCodigo, modoDemo } = await import("./whatsapp.server");
+    const { supabaseAdmin } =
+      await import("@/integrations/supabase/client.server");
+
+    const documento = s.soDigitos(data.documento);
+
+    // Dois limites: um contra quem varre muitos CPFs do mesmo lugar, outro
+    // contra quem pede código sem parar para um CPF só.
+    const [ipOk, docOk] = await Promise.all([
+      s.dentroDoLimite(`codigo:ip:${s.ipDaRequisicao()}`, 20, 15 * 60),
+      s.dentroDoLimite(`codigo:doc:${documento}`, 3, 15 * 60),
+    ]);
+    if (!ipOk || !docOk) {
       return {
         ok: false as const,
-        erro: "Este CPF/CNPJ pediu autoexclusão dos sorteios. Fale com o atendimento da LM.",
+        erro: "Muitas tentativas em pouco tempo. Espere alguns minutos e tente de novo.",
       };
     }
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const codigo = String(Math.floor(100000 + Math.random() * 900000));
-    await supabaseAdmin.from("codigos_acesso").insert({
-      cliente_id: cliente.id,
-      codigo,
-      expira_em: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+
+    const cliente = await s.clientePorDocumento(documento);
+
+    // Cliente inexistente ou autoexcluído: nada acontece, mas a resposta é a
+    // mesma de quem recebeu o código.
+    if (!cliente || cliente.autoexcluido_em) {
+      return { ok: true as const, aviso: RESPOSTA_NEUTRA };
+    }
+
+    const codigo = s.gerarCodigo();
+    const { error } = await supabaseAdmin.rpc("emitir_codigo_acesso", {
+      p_cliente_id: cliente.id,
+      p_codigo: codigo,
+      p_expira_em: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
     });
+    if (error) {
+      return {
+        ok: false as const,
+        erro: "Não foi possível gerar seu código agora. Tente de novo.",
+      };
+    }
+
+    await enviarCodigo(cliente.whatsapp, codigo, s.primeiroNome(cliente.nome));
+
     return {
       ok: true as const,
-      whatsapp: s.mascararWhatsapp(cliente.whatsapp),
-      nome: s.primeiroNome(cliente.nome),
-      codigoDemo: codigo,
+      aviso: RESPOSTA_NEUTRA,
+      // Só existe em ambiente de demonstração, com SORTEIO_MODO_DEMO=1 e fora
+      // de produção. Ver src/lib/whatsapp.server.ts.
+      ...(modoDemo() ? { codigoDemo: codigo } : {}),
     };
   });
 
 export const validarCodigo = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
-    z.object({ documento: z.string().trim(), codigo: z.string().trim().length(6) }).parse(d),
+    z
+      .object({
+        documento: z.string().trim(),
+        codigo: z.string().trim().length(6),
+      })
+      .parse(d),
   )
   .handler(async ({ data }) => {
     const s = await import("./sorteio.server");
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const cliente = await s.clientePorDocumento(data.documento);
-    if (!cliente) return { ok: false as const, erro: "CPF/CNPJ inválido." };
-    const { data: registro } = await supabaseAdmin
-      .from("codigos_acesso")
-      .select("*")
-      .eq("cliente_id", cliente.id)
-      .eq("codigo", data.codigo)
-      .is("usado_em", null)
-      .gt("expira_em", new Date().toISOString())
-      .order("criado_em", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (!registro) return { ok: false as const, erro: "Código incorreto ou expirado." };
-    await supabaseAdmin
-      .from("codigos_acesso")
-      .update({ usado_em: new Date().toISOString() })
-      .eq("id", registro.id);
-    const token = crypto.randomUUID() + "." + crypto.randomUUID();
-    await supabaseAdmin.from("sessoes").insert({
-      token,
-      cliente_id: cliente.id,
-      expira_em: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(),
-    });
-    return { ok: true as const, token };
+    const { supabaseAdmin } =
+      await import("@/integrations/supabase/client.server");
+
+    const documento = s.soDigitos(data.documento);
+    const erroPadrao = {
+      ok: false as const,
+      erro: "Código incorreto ou expirado.",
+    };
+
+    if (
+      !(await s.dentroDoLimite(`validar:ip:${s.ipDaRequisicao()}`, 30, 15 * 60))
+    ) {
+      return {
+        ok: false as const,
+        erro: "Muitas tentativas em pouco tempo. Espere alguns minutos e tente de novo.",
+      };
+    }
+
+    const cliente = await s.clientePorDocumento(documento);
+    if (!cliente || cliente.autoexcluido_em) return erroPadrao;
+
+    // A função no banco confere, conta a tentativa e mata o código no quinto
+    // erro — tudo numa transação, para que N requisições paralelas não contem
+    // como uma tentativa só.
+    const { data: aceito, error } = await supabaseAdmin.rpc(
+      "consumir_codigo_acesso",
+      {
+        p_cliente_id: cliente.id,
+        p_codigo: data.codigo,
+      },
+    );
+    if (error || aceito !== true) return erroPadrao;
+
+    const token = await s.abrirSessao(cliente.id);
+    if (!token)
+      return {
+        ok: false as const,
+        erro: "Não foi possível abrir sua sessão. Tente de novo.",
+      };
+
+    return { ok: true as const };
   });
 
-export const carregarPainel = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => z.object({ token: z.string().min(10) }).parse(d))
-  .handler(async ({ data }) => {
+// O cookie de sessão é httpOnly, então a página não consegue olhar para ele.
+// Esta é a pergunta barata que substitui o antigo `lerToken()`.
+export const sessaoAtiva = createServerFn({ method: "GET" }).handler(
+  async () => {
     const s = await import("./sorteio.server");
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const cliente = await s.clienteDaSessao(data.token);
+    return { ativa: (await s.clienteDaSessao()) !== null };
+  },
+);
+
+export const carregarPainel = createServerFn({ method: "POST" }).handler(
+  async () => {
+    const s = await import("./sorteio.server");
+    const { supabaseAdmin } =
+      await import("@/integrations/supabase/client.server");
+    const cliente = await s.clienteDaSessao();
     if (!cliente) return { ok: false as const };
     const campanha = await s.campanhaAtual();
 
-    const [creditosRes, meusRes, ocupadosRes, participantesRes] = await Promise.all([
-      supabaseAdmin
-        .from("creditos")
-        .select("id, quantidade, criado_em, eventos(tipo, competencia, ocorrido_em)")
-        .eq("cliente_id", cliente.id)
-        .eq("campanha_id", s.CAMPANHA_ID)
-        .order("criado_em", { ascending: false }),
-      supabaseAdmin
-        .from("numeros")
-        .select("numero, escolhido_em, protocolo")
-        .eq("cliente_id", cliente.id)
-        .eq("campanha_id", s.CAMPANHA_ID)
-        .order("numero"),
-      supabaseAdmin.from("numeros").select("numero").eq("campanha_id", s.CAMPANHA_ID),
-      supabaseAdmin
-        .from("creditos")
-        .select("cliente_id")
-        .eq("campanha_id", s.CAMPANHA_ID),
-    ]);
+    const [creditosRes, meusRes, ocupadosRes, participantesRes] =
+      await Promise.all([
+        supabaseAdmin
+          .from("creditos")
+          .select(
+            "id, quantidade, criado_em, eventos(tipo, competencia, ocorrido_em)",
+          )
+          .eq("cliente_id", cliente.id)
+          .eq("campanha_id", s.CAMPANHA_ID)
+          .order("criado_em", { ascending: false }),
+        supabaseAdmin
+          .from("numeros")
+          .select("numero, escolhido_em, protocolo")
+          .eq("cliente_id", cliente.id)
+          .eq("campanha_id", s.CAMPANHA_ID)
+          .order("numero"),
+        supabaseAdmin
+          .from("numeros")
+          .select("numero")
+          .eq("campanha_id", s.CAMPANHA_ID),
+        supabaseAdmin
+          .from("creditos")
+          .select("cliente_id")
+          .eq("campanha_id", s.CAMPANHA_ID),
+      ]);
 
     const creditos = (creditosRes.data ?? []).map((c) => {
       const ev = c.eventos as unknown as {
@@ -113,7 +184,9 @@ export const carregarPainel = createServerFn({ method: "POST" })
     const totalCreditos = creditos.reduce((a, c) => a + c.quantidade, 0);
     const meusNumeros = meusRes.data ?? [];
     const ocupados = (ocupadosRes.data ?? []).map((n) => n.numero);
-    const participantes = new Set((participantesRes.data ?? []).map((c) => c.cliente_id)).size;
+    const participantes = new Set(
+      (participantesRes.data ?? []).map((c) => c.cliente_id),
+    ).size;
 
     return {
       ok: true as const,
@@ -121,7 +194,8 @@ export const carregarPainel = createServerFn({ method: "POST" })
         nome: cliente.nome,
         primeiroNome: s.primeiroNome(cliente.nome),
         mesesEmDia: cliente.meses_em_dia,
-        documento: cliente.cpf_cnpj,
+        // O CPF/CNPJ não sai daqui: nenhuma tela usa e dado pessoal que não
+        // precisa trafegar, não trafega.
       },
       campanha,
       creditos,
@@ -131,74 +205,80 @@ export const carregarPainel = createServerFn({ method: "POST" })
       ocupados,
       participantes,
     };
-  });
+  },
+);
 
 export const escolherNumeros = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z
       .object({
-        token: z.string().min(10),
-        numeros: z.array(z.number().int().min(0).max(9999)).min(1).max(200),
+        // A faixa real vem de digitos_cartela e é conferida no banco; aqui só
+        // barramos entrada absurda antes de chegar lá.
+        numeros: z.array(z.number().int().min(0).max(999999)).min(1).max(200),
       })
       .parse(d),
   )
   .handler(async ({ data }) => {
     const s = await import("./sorteio.server");
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const cliente = await s.clienteDaSessao(data.token);
-    if (!cliente) return { ok: false as const, erro: "Sessão expirada. Entre novamente." };
+    const { supabaseAdmin } =
+      await import("@/integrations/supabase/client.server");
+    const cliente = await s.clienteDaSessao();
+    if (!cliente)
+      return { ok: false as const, erro: "Sessão expirada. Entre novamente." };
 
-    const [{ data: creditos }, { data: meus }] = await Promise.all([
-      supabaseAdmin
-        .from("creditos")
-        .select("quantidade")
-        .eq("cliente_id", cliente.id)
-        .eq("campanha_id", s.CAMPANHA_ID),
-      supabaseAdmin
-        .from("numeros")
-        .select("numero")
-        .eq("cliente_id", cliente.id)
-        .eq("campanha_id", s.CAMPANHA_ID),
-    ]);
-    const saldo =
-      (creditos ?? []).reduce((a, c) => a + c.quantidade, 0) - (meus ?? []).length;
-    const escolhidos = Array.from(new Set(data.numeros));
-    if (escolhidos.length > saldo) {
-      return { ok: false as const, erro: `Você tem apenas ${saldo} número(s) disponível(is).` };
-    }
-
-    const protocolo =
-      "LM-" +
-      new Date().toISOString().slice(2, 10).replace(/-/g, "") +
-      "-" +
-      String(Math.floor(1000 + Math.random() * 9000));
-
-    const { error } = await supabaseAdmin.from("numeros").insert(
-      escolhidos.map((numero) => ({
-        campanha_id: s.CAMPANHA_ID,
-        numero,
-        cliente_id: cliente.id,
-        protocolo,
-      })),
+    // Saldo, janela da campanha, faixa da cartela e gravação acontecem na mesma
+    // transação. Antes o saldo era lido e só depois gravado, então duas
+    // requisições simultâneas passavam as duas pela checagem.
+    const { data: resultado, error } = await supabaseAdmin.rpc(
+      "escolher_numeros",
+      {
+        p_cliente_id: cliente.id,
+        p_campanha_id: s.CAMPANHA_ID,
+        p_numeros: data.numeros,
+      },
     );
+
     if (error) {
+      console.error("[escolher_numeros]", error);
       return {
         ok: false as const,
-        erro: "Algum dos números acabou de ser escolhido por outro cliente. Atualize a cartela.",
+        erro: "Não foi possível confirmar seus números agora. Tente de novo.",
       };
     }
-    return { ok: true as const, protocolo, numeros: escolhidos.sort((a, b) => a - b) };
+
+    const r = resultado as {
+      ok: boolean;
+      erro?: string;
+      protocolo?: string;
+      numeros?: number[];
+      conflito?: boolean;
+    };
+
+    if (!r.ok) {
+      return {
+        ok: false as const,
+        erro: r.erro ?? "Não foi possível confirmar seus números.",
+      };
+    }
+
+    return {
+      ok: true as const,
+      protocolo: r.protocolo!,
+      numeros: r.numeros ?? [],
+    };
   });
 
 export const buscarComprovante = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
-    z.object({ token: z.string().min(10), protocolo: z.string().min(3) }).parse(d),
+    z.object({ protocolo: z.string().trim().min(3) }).parse(d),
   )
   .handler(async ({ data }) => {
     const s = await import("./sorteio.server");
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const cliente = await s.clienteDaSessao(data.token);
-    if (!cliente) return { ok: false as const };
+    const { supabaseAdmin } =
+      await import("@/integrations/supabase/client.server");
+    const cliente = await s.clienteDaSessao();
+    if (!cliente)
+      return { ok: false as const, erro: "Sessão expirada. Entre novamente." };
     const { data: numeros } = await supabaseAdmin
       .from("numeros")
       .select("numero, escolhido_em")
@@ -216,37 +296,67 @@ export const buscarComprovante = createServerFn({ method: "POST" })
     };
   });
 
-export const carregarResultado = createServerFn({ method: "GET" }).handler(async () => {
+export const carregarResultado = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const s = await import("./sorteio.server");
+    const { supabaseAdmin } =
+      await import("@/integrations/supabase/client.server");
+    const campanha = await s.campanhaAtual();
+    if (
+      !campanha ||
+      campanha.numero_sorteado === null ||
+      !campanha.ganhador_cliente_id
+    ) {
+      return {
+        ok: true as const,
+        campanha,
+        ganhador: null,
+        apurada: false as const,
+      };
+    }
+    const { data: ganhador } = await supabaseAdmin
+      .from("clientes")
+      .select("nome")
+      .eq("id", campanha.ganhador_cliente_id)
+      .maybeSingle();
+    return {
+      ok: true as const,
+      campanha,
+      ganhador: ganhador ? abreviarNome(ganhador.nome) : null,
+      apurada: true as const,
+    };
+  },
+);
+
+// "Maria Aparecida Souza" -> "Maria S." — anuncia o ganhador sem expor o nome
+// inteiro de quem não pediu para aparecer.
+function abreviarNome(nome: string) {
+  const partes = nome.trim().split(/\s+/);
+  const primeiro = partes[0] ?? nome;
+  const ultimo = partes.length > 1 ? partes[partes.length - 1] : undefined;
+  const inicial = ultimo?.[0];
+  return inicial ? `${primeiro} ${inicial}.` : primeiro;
+}
+
+export const sair = createServerFn({ method: "POST" }).handler(async () => {
   const s = await import("./sorteio.server");
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const campanha = await s.campanhaAtual();
-  if (!campanha || campanha.numero_sorteado === null) {
-    return { ok: true as const, campanha, ganhador: null, apurada: false as const };
-  }
-  const { data: ganhador } = await supabaseAdmin
-    .from("clientes")
-    .select("nome")
-    .eq("id", campanha.ganhador_cliente_id ?? "")
-    .maybeSingle();
-  return {
-    ok: true as const,
-    campanha,
-    ganhador: ganhador ? s.primeiroNome(ganhador.nome) + " " + ganhador.nome.split(" ").slice(-1)[0]?.[0] + "." : null,
-    apurada: true as const,
-  };
+  await s.encerrarSessao();
+  return { ok: true as const };
 });
 
-export const autoexcluir = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => z.object({ token: z.string().min(10) }).parse(d))
-  .handler(async ({ data }) => {
+export const autoexcluir = createServerFn({ method: "POST" }).handler(
+  async () => {
     const s = await import("./sorteio.server");
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const cliente = await s.clienteDaSessao(data.token);
+    const { supabaseAdmin } =
+      await import("@/integrations/supabase/client.server");
+    const cliente = await s.clienteDaSessao();
     if (!cliente) return { ok: false as const };
     await supabaseAdmin
       .from("clientes")
       .update({ autoexcluido_em: new Date().toISOString() })
       .eq("id", cliente.id);
     await supabaseAdmin.from("sessoes").delete().eq("cliente_id", cliente.id);
+    s.apagarCookieSessao();
     return { ok: true as const };
-  });
+  },
+);
