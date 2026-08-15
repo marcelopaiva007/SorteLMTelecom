@@ -30,8 +30,20 @@ Base: commit `178b855` · Análise em 15/08/2026
 > visível, alvos de toque de 44px na cartela, `og:image` para o link
 > compartilhado no WhatsApp, testes do núcleo de regras e CI no GitHub Actions.
 >
-> **Continuam abertos:** conector do ERP, provedor de WhatsApp e a autorização
-> da SPA/MF — os três dependem de decisão ou contrato, não de código.
+> **Conector do ERP (15/08/2026).** A porta de entrada está pronta e
+> documentada em `docs/INTEGRACAO-ERP.md`: o ERP posta clientes e eventos, o
+> banco garante a idempotência e o crédito é concedido sozinho. Falta o time do
+> ERP chamar o endpoint.
+>
+> **Continua aberto:** o envio real por WhatsApp, aguardando os endpoints do
+> parceiro que detém o contrato com a Meta. O transporte da Cloud API está
+> escrito e é ligado por variável de ambiente.
+>
+> **Fora do escopo de desenvolvimento por decisão do cliente (15/08/2026):**
+> a autorização prévia da SPA/MF e os itens de conformidade que dependem dela
+> (número do Certificado de Autorização no selo, regulamento integral, controle
+> de entrega e prazo de prescrição). O §6 fica no documento como registro do que
+> a lei exige, não como tarefa.
 > O envio real por WhatsApp continua pendente de decisão do provedor: até lá o
 > ambiente de demonstração precisa de `SORTEIO_MODO_DEMO=1` para que alguém
 > consiga entrar.
@@ -101,13 +113,18 @@ O sistema busca todos os números ocupados numa consulta sem paginação, e a AP
 corta em ~1.000 linhas. Com a cartela cheia, o cliente escolhe um número já vendido, o
 sistema recusa, e a culpa parece ser dele. Os contadores do painel têm o mesmo defeito.
 
-**5. Falta a autorização legal da promoção.**
+**5. Falta a autorização legal da promoção.** — *fora do escopo de desenvolvimento*
 Prêmio grátis vinculado a consumo (assinar, pagar em dia, quitar) é promoção comercial na
-modalidade sorteio e **depende de autorização prévia da SPA/MF** (Lei 5.768/1971, pedido
-pelo sistema SCPC). O número do Certificado de Autorização precisa aparecer em todo material
-de divulgação — e o selo do sistema hoje não tem esse campo. Também faltam regulamento
-integral, controle de entrega do prêmio e o prazo de prescrição de 180 dias.
-*(Não é parecer jurídico — é o que o software precisa suportar para o jurídico aprovar.)*
+modalidade sorteio e depende de autorização prévia da SPA/MF (Lei 5.768/1971, pedido pelo
+sistema SCPC).
+
+> Tirado do escopo de desenvolvimento por decisão do cliente em 15/08/2026. Fica registrado
+> porque a exigência não deixa de existir, mas não é tarefa de engenharia e não bloqueia as
+> outras frentes. Se voltar à mesa, o que o software precisaria ganhar é: campo do
+> Certificado de Autorização no selo, regulamento integral versionado e controle de entrega
+> do prêmio com o prazo de prescrição de 180 dias.
+>
+> *Não é parecer jurídico — é o que o software precisaria suportar.*
 
 ---
 
@@ -120,19 +137,16 @@ Webhook do ERP empurrando, ou o Sorteio LM puxando por API/arquivo em horário f
 *Recomendação: puxar por rotina agendada.* É mais simples de auditar, não depende do ERP
 saber falar com a gente, e o histórico de leituras (que o painel já sabe exibir) fica natural.
 
-**Decisão 2 — Qual provedor de WhatsApp?**
-Meta Cloud API (mais barato, mais burocrático) ou intermediário tipo Zenvia/Twilio (mais
-caro, entra no ar em dias). *Recomendação: intermediário para a primeira campanha.* O código
-OTP é o gargalo do sistema inteiro; não vale travar o lançamento em aprovação de template.
+**Decisão 2 — Qual provedor de WhatsApp?** ✅ *resolvida em 15/08/2026*
+Vai pela Meta Cloud API, através do parceiro que já tem o contrato. O transporte está escrito
+e é ligado por variável de ambiente; falta o parceiro entregar os endpoints e as credenciais.
 
-**Decisão 3 — Uma campanha por vez, ou várias simultâneas?**
-Hoje o código assume uma só, fixa. *Recomendação: uma por vez, mas resolvida por data no
-banco.* Custa quase o mesmo que a solução fixa e destrava campanhas futuras sem deploy.
+**Decisão 3 — Uma campanha por vez, ou várias simultâneas?** ✅ *resolvida na Onda 2*
+Uma por vez, resolvida por data no banco, com índice único garantindo que não haja duas
+abertas.
 
-**Decisão 4 — Quando entra o pedido de autorização na SPA/MF?**
-Ele leva semanas e trava a divulgação. *Recomendação: iniciar agora, em paralelo ao
-desenvolvimento* — é o item de caminho crítico mais longo e o único que não acelera com mais
-programador.
+**Decisão 4 — Quando entra o pedido de autorização na SPA/MF?** — *fora do escopo*
+Tirado do desenvolvimento por decisão do cliente em 15/08/2026.
 
 ---
 
@@ -170,8 +184,15 @@ Esforço estimado em semanas de uma pessoa desenvolvedora.
   "Carregando…" para sempre).
 - Testes do núcleo (crédito, apuração, corrida) e CI.
 
-**Total até uma campanha real operável: ≈7 semanas de uma pessoa**, com o pedido à SPA/MF
-correndo em paralelo desde já.
+**As quatro ondas foram entregues em 15/08/2026.** O que resta para uma campanha real não é
+mais desenvolvimento:
+
+| Pendência | Com quem está |
+|---|---|
+| Aplicar as três migrations no Supabase | Acesso ao banco — ver `docs/APLICAR-MIGRATIONS.md` |
+| Endpoints e credenciais do WhatsApp | Parceiro que detém o contrato com a Meta |
+| Chamar o endpoint de ingestão | Time do ERP — ver `docs/INTEGRACAO-ERP.md` |
+| Confirmar a leitura de `limite_meses` e `carencia_dias` | Negócio |
 
 ---
 
