@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuth } from "@/lib/auth.middleware";
 import { z } from "zod";
 
 async function exigirAdmin(supabase: any, userId: string) {
@@ -104,8 +104,7 @@ export const adminVisaoGeral = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     await exigirAdmin(supabase, userId);
 
-    const { supabaseAdmin } =
-      await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/supabase.server");
     const s = await import("@/lib/sorteio.server");
 
     const campanha = await s.campanhaAtual();
@@ -199,8 +198,7 @@ export const adminCliente = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await exigirAdmin(supabase, userId);
 
-    const { supabaseAdmin } =
-      await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/supabase.server");
     const termo = data.busca.trim();
     const digitos = termo.replace(/\D/g, "");
 
@@ -588,8 +586,7 @@ export const apurarCampanha = createServerFn({ method: "POST" })
 
     // A apuração roda no banco: busca do ganhador com volta ao início da
     // cartela, gravação e travamento numa transação só.
-    const { supabaseAdmin } =
-      await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/supabase.server");
     const { data: resultado, error } = await supabaseAdmin.rpc(
       "apurar_campanha",
       {
@@ -633,8 +630,7 @@ export const processarEventos = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await exigirAdmin(supabase, userId);
 
-    const { supabaseAdmin } =
-      await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/supabase.server");
     const { data: resultado, error } = await supabaseAdmin.rpc(
       "processar_eventos_pendentes",
       { p_limite: 5000 },
@@ -730,7 +726,7 @@ export const chaveErp = createServerFn({ method: "GET" })
     }
 
     const [{ supabaseAdmin }, { CHAVE_ERP }] = await Promise.all([
-      import("@/integrations/supabase/client.server"),
+      import("@/lib/supabase.server"),
       import("./erp.server"),
     ]);
 
@@ -779,7 +775,7 @@ export const girarChaveErp = createServerFn({ method: "POST" })
 
     const [{ supabaseAdmin }, { CHAVE_ERP, esquecerChaveDeIngestao }] =
       await Promise.all([
-        import("@/integrations/supabase/client.server"),
+        import("@/lib/supabase.server"),
         import("./erp.server"),
       ]);
 

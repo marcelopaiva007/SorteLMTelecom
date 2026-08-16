@@ -17,8 +17,7 @@ export const solicitarCodigo = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const s = await import("./sorteio.server");
     const { enviarCodigo, modoDemo } = await import("./whatsapp.server");
-    const { supabaseAdmin } =
-      await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/supabase.server");
 
     const documento = s.soDigitos(data.documento);
 
@@ -78,8 +77,7 @@ export const validarCodigo = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const s = await import("./sorteio.server");
-    const { supabaseAdmin } =
-      await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/supabase.server");
 
     const documento = s.soDigitos(data.documento);
     const erroPadrao = {
@@ -152,8 +150,7 @@ export const sessaoAtiva = createServerFn({ method: "GET" }).handler(
 export const carregarPainel = createServerFn({ method: "POST" }).handler(
   async () => {
     const s = await import("./sorteio.server");
-    const { supabaseAdmin } =
-      await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/supabase.server");
     const cliente = await s.clienteDaSessao();
     if (!cliente) return { ok: false as const };
 
@@ -252,8 +249,7 @@ export const ocupadosDoBloco = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const s = await import("./sorteio.server");
-    const { supabaseAdmin } =
-      await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/supabase.server");
     if (!(await s.clienteDaSessao()))
       return { ok: false as const, numeros: [] };
 
@@ -279,8 +275,7 @@ export const sortearLivres = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const s = await import("./sorteio.server");
-    const { supabaseAdmin } =
-      await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/supabase.server");
     if (!(await s.clienteDaSessao()))
       return { ok: false as const, erro: "Sessão expirada. Entre novamente." };
 
@@ -314,8 +309,7 @@ export const escolherNumeros = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const s = await import("./sorteio.server");
-    const { supabaseAdmin } =
-      await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/supabase.server");
     const cliente = await s.clienteDaSessao();
     if (!cliente)
       return { ok: false as const, erro: "Sessão expirada. Entre novamente." };
@@ -375,8 +369,7 @@ export const buscarComprovante = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const s = await import("./sorteio.server");
-    const { supabaseAdmin } =
-      await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/supabase.server");
     const cliente = await s.clienteDaSessao();
     if (!cliente)
       return { ok: false as const, erro: "Sessão expirada. Entre novamente." };
@@ -402,8 +395,7 @@ export const buscarComprovante = createServerFn({ method: "POST" })
 export const carregarResultado = createServerFn({ method: "GET" }).handler(
   async () => {
     const s = await import("./sorteio.server");
-    const { supabaseAdmin } =
-      await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/supabase.server");
     const campanha = await s.campanhaAtual();
     if (
       !campanha ||
@@ -450,8 +442,7 @@ export const sair = createServerFn({ method: "POST" }).handler(async () => {
 export const autoexcluir = createServerFn({ method: "POST" }).handler(
   async () => {
     const s = await import("./sorteio.server");
-    const { supabaseAdmin } =
-      await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/supabase.server");
     const cliente = await s.clienteDaSessao();
     if (!cliente) return { ok: false as const };
     await supabaseAdmin

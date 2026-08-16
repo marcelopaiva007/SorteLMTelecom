@@ -4,7 +4,7 @@ import {
   getRequestIP,
   setCookie,
 } from "@tanstack/react-start/server";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { supabaseAdmin } from "@/lib/supabase.server";
 
 const COOKIE_SESSAO = "sorteio_lm_sessao";
 const DIAS_DE_SESSAO = 7;

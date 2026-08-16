@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase.browser";
 import { AbaVisaoGeral } from "@/components/lm/admin/AbaVisaoGeral";
 import { AbaCampanhas } from "@/components/lm/admin/AbaCampanhas";
 import { AbaPesos } from "@/components/lm/admin/AbaPesos";

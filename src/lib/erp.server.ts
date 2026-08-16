@@ -85,8 +85,7 @@ export async function chaveDeIngestao(): Promise<string | null> {
 
   if (cache && cache.ate > Date.now()) return cache.valor;
 
-  const { supabaseAdmin } =
-    await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin } = await import("@/lib/supabase.server");
   const { data, error } = await supabaseAdmin
     .from("segredos")
     .select("valor")
@@ -134,8 +133,7 @@ export async function receberDoErp(request: Request): Promise<Response> {
     );
   }
 
-  const { supabaseAdmin } =
-    await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin } = await import("@/lib/supabase.server");
   const iniciado = new Date().toISOString();
 
   let clientesGravados = 0;
