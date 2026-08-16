@@ -104,81 +104,55 @@ export const adminVisaoGeral = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     await exigirAdmin(supabase, userId);
 
-    const { supabaseAdmin } = await import("@/lib/supabase.server");
-    const s = await import("@/lib/sorteio.server");
+    // Uma chamada só, com o token do próprio administrador. Antes eram cinco
+    // consultas com a chave service_role — que precisa estar no ambiente da
+    // hospedagem e, faltando, derrubava esta tela inteira enquanto o resto do
+    // painel continuava de pé. Nada aqui exige privilégio além de "é admin",
+    // e a função no banco confere isso por dentro.
+    const { data, error } = await supabase.rpc("resumo_visao_geral");
 
-    const campanha = await s.campanhaAtual();
-
-    const [estatisticas, creditosRes, bloqueadosRes, clientesRes, sincRes] =
-      await Promise.all([
-        campanha
-          ? supabaseAdmin.rpc("estatisticas_campanha", {
-              p_campanha_id: campanha.id,
-            })
-          : Promise.resolve({ data: null }),
-        campanha
-          ? supabaseAdmin
-              .from("creditos")
-              .select("quantidade")
-              .eq("campanha_id", campanha.id)
-          : Promise.resolve({ data: [] }),
-        supabaseAdmin
-          .from("eventos_bloqueados")
-          .select("*", { count: "exact", head: true }),
-        supabaseAdmin
-          .from("clientes")
-          .select("*", { count: "exact", head: true }),
-        supabaseAdmin
-          .from("sincronizacoes")
-          .select("status, iniciado_em")
-          .order("iniciado_em", { ascending: false })
-          .limit(5),
-      ]);
-
-    const est = (estatisticas.data ?? {}) as {
-      ocupados?: number;
-      participantes?: number;
-    };
-    const numerosConcedidos = (
-      (creditosRes.data ?? []) as { quantidade: number }[]
-    ).reduce((a, c) => a + c.quantidade, 0);
-
-    let falhasSeguidas = 0;
-    for (const linha of (sincRes.data ?? []) as { status: string }[]) {
-      if (linha.status === "falha") falhasSeguidas++;
-      else break;
+    if (error) {
+      console.error("[resumo_visao_geral]", error);
+      throw new Error("Não foi possível carregar a visão geral.");
     }
 
-    const cartela = campanha ? Math.pow(10, campanha.digitos_cartela) : 0;
-    const escolhidos = est.ocupados ?? 0;
+    const r = (data ?? {}) as {
+      campanha: {
+        id: string;
+        nome: string;
+        premio: string;
+        status: string;
+        inicio: string;
+        fim: string;
+        data_apuracao: string;
+        digitos_cartela: number;
+        numero_sorteado: number | null;
+        modo_apuracao: "loteria_federal" | "sorteio_proprio";
+      } | null;
+      cartela: number;
+      escolhidos: number;
+      participantes: number;
+      numeros_concedidos: number;
+      na_espera: number;
+      bloqueados: number;
+      clientes: number;
+      ultima_leitura: string | null;
+      falhas_seguidas: number;
+    };
 
     return {
-      campanha: campanha
-        ? {
-            id: campanha.id,
-            nome: campanha.nome,
-            premio: campanha.premio,
-            status: campanha.status,
-            inicio: campanha.inicio,
-            fim: campanha.fim,
-            data_apuracao: campanha.data_apuracao,
-            digitos_cartela: campanha.digitos_cartela,
-            numero_sorteado: campanha.numero_sorteado,
-          }
-        : null,
-      cartela,
-      escolhidos,
-      participantes: est.participantes ?? 0,
-      numerosConcedidos,
+      campanha: r.campanha,
+      cartela: r.cartela ?? 0,
+      escolhidos: r.escolhidos ?? 0,
+      participantes: r.participantes ?? 0,
+      numerosConcedidos: r.numeros_concedidos ?? 0,
       // Concedido menos escolhido: é quanto crédito está parado na mão dos
       // clientes. Número alto quer dizer que a comunicação não chegou.
-      naEspera: Math.max(0, numerosConcedidos - escolhidos),
-      bloqueados: bloqueadosRes.count ?? 0,
-      clientes: clientesRes.count ?? 0,
-      ultimaLeitura:
-        ((sincRes.data ?? []) as { iniciado_em: string }[])[0]?.iniciado_em ??
-        null,
-      falhasSeguidas,
+      naEspera: r.na_espera ?? 0,
+      bloqueados: r.bloqueados ?? 0,
+      clientes: r.clientes ?? 0,
+      ultimaLeitura: r.ultima_leitura,
+      falhasSeguidas: r.falhas_seguidas ?? 0,
     };
   });
 
@@ -198,11 +172,12 @@ export const adminCliente = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await exigirAdmin(supabase, userId);
 
-    const { supabaseAdmin } = await import("@/lib/supabase.server");
+    // As cinco tabelas têm policy "admin le X" para authenticated, então o
+    // token do próprio administrador basta — não precisa de service_role.
     const termo = data.busca.trim();
     const digitos = termo.replace(/\D/g, "");
 
-    const { data: encontrados } = await supabaseAdmin
+    const { data: encontrados } = await supabase
       .from("clientes")
       .select(
         "id, erp_id, cpf_cnpj, nome, whatsapp, status, meses_em_dia, autoexcluido_em",
@@ -232,7 +207,7 @@ export const adminCliente = createServerFn({ method: "POST" })
 
     const cliente = lista[0]!;
     const [creditosRes, numerosRes, bloqRes] = await Promise.all([
-      supabaseAdmin
+      supabase
         .from("creditos")
         .select(
           "id, quantidade, criado_em, detalhe, eventos(tipo, competencia, ocorrido_em)",
@@ -240,13 +215,13 @@ export const adminCliente = createServerFn({ method: "POST" })
         .eq("cliente_id", cliente.id)
         .order("criado_em", { ascending: false })
         .limit(100),
-      supabaseAdmin
+      supabase
         .from("numeros")
         .select("numero, escolhido_em, protocolo")
         .eq("cliente_id", cliente.id)
         .order("numero")
         .limit(500),
-      supabaseAdmin
+      supabase
         .from("eventos_bloqueados")
         .select("id, tipo, motivo, detalhe, ocorrido_em")
         .eq("cliente_id", cliente.id)
@@ -409,6 +384,10 @@ export const salvarCampanha = createServerFn({ method: "POST" })
         data_apuracao: z.string().min(10),
         digitos_cartela: z.number().int().min(2).max(6),
         criterio_apuracao: z.string().trim().min(10),
+        // Como o número vencedor vai sair. Escolhido na criação e congelado na
+        // abertura, porque é parte da promessa que o cliente lê antes de
+        // escolher os números dele.
+        modo_apuracao: z.enum(["loteria_federal", "sorteio_proprio"]),
       })
       .parse(d),
   )
@@ -425,6 +404,7 @@ export const salvarCampanha = createServerFn({ method: "POST" })
         data_apuracao: data.data_apuracao,
         digitos_cartela: data.digitos_cartela,
         criterio_apuracao: data.criterio_apuracao,
+        modo_apuracao: data.modo_apuracao,
         status: "rascunho",
       });
       if (error) return { ok: false as const, erro: error.message };
@@ -446,6 +426,12 @@ export const salvarCampanha = createServerFn({ method: "POST" })
         erro: "O critério de apuração está congelado desde a abertura da campanha e não pode ser alterado.",
       };
     }
+    if (travado && atual.modo_apuracao !== data.modo_apuracao) {
+      return {
+        ok: false as const,
+        erro: "A forma de apuração está congelada desde a abertura da campanha e não pode ser alterada.",
+      };
+    }
 
     const patch = {
       nome: data.nome,
@@ -459,6 +445,7 @@ export const salvarCampanha = createServerFn({ method: "POST" })
         : {
             criterio_apuracao: data.criterio_apuracao,
             criterio_congelado_em: new Date().toISOString(),
+            modo_apuracao: data.modo_apuracao,
           }),
     };
 
@@ -586,16 +573,12 @@ export const apurarCampanha = createServerFn({ method: "POST" })
 
     // A apuração roda no banco: busca do ganhador com volta ao início da
     // cartela, gravação e travamento numa transação só.
-    const { supabaseAdmin } = await import("@/lib/supabase.server");
-    const { data: resultado, error } = await supabaseAdmin.rpc(
-      "apurar_campanha",
-      {
-        p_campanha_id: data.id,
-        p_concurso: data.concurso,
-        p_data_extracao: data.data_extracao,
-        p_premios: data.premios,
-      },
-    );
+    const { data: resultado, error } = await supabase.rpc("apurar_campanha", {
+      p_campanha_id: data.id,
+      p_concurso: data.concurso,
+      p_data_extracao: data.data_extracao,
+      p_premios: data.premios,
+    });
 
     if (error) {
       console.error("[apurar_campanha]", error);
@@ -624,20 +607,82 @@ export const apurarCampanha = createServerFn({ method: "POST" })
     };
   });
 
+/**
+ * Apuração por sorteio próprio.
+ *
+ * O número sai ao vivo no estúdio e o operador registra aqui o que foi
+ * sorteado. O que sustenta o resultado não é a extração da Caixa, é a gravação
+ * da transmissão mais a assinatura de quem auditou — por isso os dois são
+ * obrigatórios, e o banco recusa a apuração sem eles.
+ */
+export const apurarCampanhaPropria = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        numero: z.number().int().min(0).max(999999),
+        realizado_em: z.string().min(10),
+        transmissao: z.string().trim().url().max(500),
+        auditores: z.array(z.string().trim().min(3).max(120)).min(1).max(10),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await exigirAdmin(supabase, userId);
+
+    const { data: resultado, error } = await supabase.rpc(
+      "apurar_campanha_propria",
+      {
+        p_campanha_id: data.id,
+        p_numero: data.numero,
+        p_realizado_em: data.realizado_em,
+        p_transmissao: data.transmissao,
+        p_auditores: data.auditores,
+      },
+    );
+
+    if (error) {
+      console.error("[apurar_campanha_propria]", error);
+      return {
+        ok: false as const,
+        erro: "Não foi possível apurar agora. Tente de novo.",
+      };
+    }
+
+    const r = resultado as {
+      ok: boolean;
+      erro?: string;
+      numero_base?: number;
+      numero_sorteado?: number;
+    };
+
+    await auditar(supabase, "apurar_campanha", data.id, null, r);
+
+    if (!r.ok)
+      return { ok: false as const, erro: r.erro ?? "Não foi possível apurar." };
+    return {
+      ok: true as const,
+      numeroBase: r.numero_base!,
+      numeroSorteado: r.numero_sorteado!,
+    };
+  });
+
 export const processarEventos = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     await exigirAdmin(supabase, userId);
 
-    const { supabaseAdmin } = await import("@/lib/supabase.server");
-    const { data: resultado, error } = await supabaseAdmin.rpc(
-      "processar_eventos_pendentes",
-      { p_limite: 5000 },
+    // Roda no banco, com o token do administrador. A função confere `is_admin`
+    // por dentro e já grava a rodada no histórico de leituras.
+    const { data: resultado, error } = await supabase.rpc(
+      "processar_eventos_admin",
     );
 
     if (error) {
-      console.error("[processar_eventos_pendentes]", error);
+      console.error("[processar_eventos_admin]", error);
       return {
         ok: false as const,
         erro: "Não foi possível processar os eventos agora.",
@@ -650,14 +695,6 @@ export const processarEventos = createServerFn({ method: "POST" })
       bloqueados: number;
       ignorados: number;
     };
-
-    await supabaseAdmin.from("sincronizacoes").insert({
-      origem: "processamento_manual",
-      status: "sucesso",
-      eventos_lidos: r.creditados + r.bloqueados + r.ignorados,
-      duplicados_barrados: r.ignorados,
-      terminado_em: new Date().toISOString(),
-    });
 
     await auditar(supabase, "processar_eventos", null, null, r);
     return {
@@ -725,27 +762,19 @@ export const chaveErp = createServerFn({ method: "GET" })
       };
     }
 
-    const [{ supabaseAdmin }, { CHAVE_ERP }] = await Promise.all([
-      import("@/lib/supabase.server"),
-      import("./erp.server"),
-    ]);
-
-    const { data, error } = await supabaseAdmin
-      .from("segredos")
-      .select("valor, atualizado_em")
-      .eq("chave", CHAVE_ERP)
-      .maybeSingle();
+    const { data, error } = await supabase.rpc("ler_chave_erp");
 
     if (error) {
-      console.error("[chave_erp]", error);
+      console.error("[ler_chave_erp]", error);
       return { ok: false as const, erro: "Não foi possível ler a chave." };
     }
 
+    const r = (data ?? {}) as { chave?: string; atualizado_em?: string };
     return {
       ok: true as const,
       origem: "banco" as const,
-      chave: data?.valor ?? null,
-      atualizadaEm: data?.atualizado_em ?? null,
+      chave: r.chave ?? null,
+      atualizadaEm: r.atualizado_em ?? null,
     };
   });
 
@@ -762,40 +791,22 @@ export const girarChaveErp = createServerFn({ method: "POST" })
       };
     }
 
-    // 256 bits de aleatoriedade do sistema. O prefixo só serve para quem for
-    // ler o cabeçalho saber do que se trata.
-    const bytes = new Uint8Array(32);
-    crypto.getRandomValues(bytes);
-    const nova =
-      "erp_" +
-      btoa(String.fromCharCode(...bytes))
-        .replaceAll("+", "-")
-        .replaceAll("/", "_")
-        .replaceAll("=", "");
-
-    const [{ supabaseAdmin }, { CHAVE_ERP, esquecerChaveDeIngestao }] =
-      await Promise.all([
-        import("@/lib/supabase.server"),
-        import("./erp.server"),
-      ]);
-
-    const { error } = await supabaseAdmin.from("segredos").upsert(
-      {
-        chave: CHAVE_ERP,
-        valor: nova,
-        descricao: "Cabeçalho x-erp-chave em POST /api/erp/eventos",
-        atualizado_em: new Date().toISOString(),
-      },
-      { onConflict: "chave" },
-    );
+    // A chave nova é sorteada dentro do banco, com 32 bytes de aleatoriedade,
+    // e volta uma única vez para ser mostrada ao administrador.
+    const { data, error } = await supabase.rpc("girar_chave_erp");
 
     if (error) {
       console.error("[girar_chave_erp]", error);
       return { ok: false as const, erro: "Não foi possível gravar a chave." };
     }
 
+    const { esquecerChaveDeIngestao } = await import("./erp.server");
     esquecerChaveDeIngestao();
+
     // A chave nova nunca vai para a auditoria — só o fato de ter girado.
     await auditar(supabase, "girar_chave_erp", null, null, null);
-    return { ok: true as const, chave: nova };
+    return {
+      ok: true as const,
+      chave: ((data ?? {}) as { chave?: string }).chave ?? null,
+    };
   });

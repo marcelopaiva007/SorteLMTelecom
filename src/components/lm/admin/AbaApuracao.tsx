@@ -5,6 +5,7 @@ import {
   adminResumo,
   adminVisaoGeral,
   apurarCampanha,
+  apurarCampanhaPropria,
 } from "@/lib/admin.functions";
 import {
   Aviso,
@@ -14,12 +15,12 @@ import {
   ErroAoCarregar,
   Etiqueta,
   Painel,
-  Tabela,
   Vazio,
   botao,
-  celula,
   texto,
 } from "./ui";
+
+type Modo = "loteria_federal" | "sorteio_proprio";
 
 type Campanha = {
   id: string;
@@ -29,12 +30,18 @@ type Campanha = {
   data_apuracao: string;
   digitos_cartela: number;
   numero_sorteado: number | null;
-  extracao_federal: {
+  modo_apuracao: Modo;
+  apuracao: {
+    modo?: Modo;
     concurso?: string;
     data?: string;
     premios?: string[];
     numero_base?: number;
+    realizado_em?: string;
+    transmissao?: string;
+    auditores?: string[];
     apurado_em?: string;
+    apurado_por?: string;
   } | null;
 };
 
@@ -55,7 +62,8 @@ function dataBR(iso: string) {
 export function AbaApuracao() {
   const resumo = useServerFn(adminResumo);
   const geral = useServerFn(adminVisaoGeral);
-  const apurar = useServerFn(apurarCampanha);
+  const apurarFederal = useServerFn(apurarCampanha);
+  const apurarProprio = useServerFn(apurarCampanhaPropria);
   const qc = useQueryClient();
 
   const { data, isLoading, error } = useQuery({
@@ -74,38 +82,75 @@ export function AbaApuracao() {
   const apuradas = campanhas.filter((c) => c.status === "apurada");
 
   const [id, setId] = useState("");
-  const [concurso, setConcurso] = useState("");
-  const [dataExtracao, setDataExtracao] = useState("");
-  const [premios, setPremios] = useState<string[]>(["", "", "", "", ""]);
   const [erro, setErro] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState(false);
   const [digitado, setDigitado] = useState("");
 
-  const escolhida = apuraveis.find((c) => c.id === id) ?? null;
-  const digitos = escolhida?.digitos_cartela ?? 4;
-  const primeiro = premios[0]?.replace(/\D/g, "") ?? "";
-  const base = primeiro
-    ? primeiro.padStart(digitos, "0").slice(-digitos)
-    : null;
+  // Loteria Federal
+  const [concurso, setConcurso] = useState("");
+  const [dataExtracao, setDataExtracao] = useState("");
+  const [premios, setPremios] = useState<string[]>(["", "", "", "", ""]);
 
-  // Os números já escolhidos só são conhecidos da campanha vigente; é a
-  // informação que falta para o operador saber o tamanho do que vai apurar.
+  // Sorteio próprio
+  const [numero, setNumero] = useState("");
+  const [realizadoEm, setRealizadoEm] = useState("");
+  const [transmissao, setTransmissao] = useState("");
+  const [auditores, setAuditores] = useState("");
+
+  const escolhida = apuraveis.find((c) => c.id === id) ?? null;
+  const modo: Modo = escolhida?.modo_apuracao ?? "loteria_federal";
+  const digitos = escolhida?.digitos_cartela ?? 4;
+
+  const primeiro = premios[0]?.replace(/\D/g, "") ?? "";
+  const numeroLimpo = numero.replace(/\D/g, "");
+
+  // O número base é de onde a busca do ganhador começa. Na Loteria Federal ele
+  // vem dos últimos dígitos do 1º prêmio; no sorteio próprio é o número que
+  // saiu ao vivo.
+  const base =
+    modo === "loteria_federal"
+      ? primeiro
+        ? primeiro.padStart(digitos, "0").slice(-digitos)
+        : null
+      : numeroLimpo
+        ? numeroLimpo.padStart(digitos, "0").slice(-digitos)
+        : null;
+
+  const listaAuditores = auditores
+    .split(/[,\n]/)
+    .map((a) => a.trim())
+    .filter(Boolean);
+
   const escolhidosNaVigente =
     visao?.campanha?.id === id ? (visao?.escolhidos ?? null) : null;
 
+  function limpar() {
+    setConfirmando(false);
+    setDigitado("");
+  }
+
   const mutar = useMutation({
     mutationFn: () =>
-      apurar({
-        data: {
-          id,
-          concurso,
-          data_extracao: dataExtracao,
-          premios: premios.filter((p) => p.trim() !== ""),
-        },
-      }),
+      modo === "loteria_federal"
+        ? apurarFederal({
+            data: {
+              id,
+              concurso,
+              data_extracao: dataExtracao,
+              premios: premios.filter((p) => p.trim() !== ""),
+            },
+          })
+        : apurarProprio({
+            data: {
+              id,
+              numero: Number(numeroLimpo),
+              realizado_em: new Date(realizadoEm).toISOString(),
+              transmissao: transmissao.trim(),
+              auditores: listaAuditores,
+            },
+          }),
     onSuccess: (r) => {
-      setConfirmando(false);
-      setDigitado("");
+      limpar();
       if (r.ok) {
         setErro(null);
         qc.invalidateQueries({ queryKey: ["admin"] });
@@ -117,9 +162,12 @@ export function AbaApuracao() {
 
   const pronto =
     id !== "" &&
-    concurso.trim() !== "" &&
-    dataExtracao !== "" &&
-    primeiro !== "";
+    (modo === "loteria_federal"
+      ? concurso.trim() !== "" && dataExtracao !== "" && primeiro !== ""
+      : numeroLimpo !== "" &&
+        realizadoEm !== "" &&
+        transmissao.trim() !== "" &&
+        listaAuditores.length > 0);
 
   if (isLoading) return <Esqueleto linhas={6} />;
   if (error) return <ErroAoCarregar />;
@@ -151,8 +199,7 @@ export function AbaApuracao() {
                 onChange={(e) => {
                   setId(e.target.value);
                   setErro(null);
-                  setConfirmando(false);
-                  setDigitado("");
+                  limpar();
                 }}
               >
                 <option value="">Selecione…</option>
@@ -164,41 +211,114 @@ export function AbaApuracao() {
               </select>
             </Campo>
 
-            <div className="grid gap-3 md:grid-cols-2">
-              <Campo label="Concurso da Loteria Federal">
-                <input
-                  className={botao.input + " num"}
-                  value={concurso}
-                  onChange={(e) => setConcurso(e.target.value)}
-                  placeholder="0000000"
-                />
-              </Campo>
-              <Campo label="Data da extração">
-                <input
-                  type="date"
-                  className={botao.input + " num"}
-                  value={dataExtracao}
-                  onChange={(e) => setDataExtracao(e.target.value)}
-                />
-              </Campo>
-            </div>
+            {/* A forma de apurar é da campanha, congelada desde a abertura. O
+                formulário segue a campanha; não há escolha a fazer aqui. */}
+            {escolhida && (
+              <div className="flex items-center gap-2">
+                <Etiqueta tom="ativo">
+                  {modo === "sorteio_proprio"
+                    ? "Sorteio próprio"
+                    : "Loteria Federal"}
+                </Etiqueta>
+                <span className={texto.legenda}>
+                  definido na criação da campanha e congelado desde a abertura
+                </span>
+              </div>
+            )}
 
-            <div className="grid gap-3 md:grid-cols-5">
-              {PREMIOS.map((rotulo, i) => (
-                <Campo key={rotulo} label={rotulo}>
+            {escolhida && modo === "loteria_federal" && (
+              <>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Campo label="Concurso da Loteria Federal">
+                    <input
+                      className={botao.input + " num"}
+                      value={concurso}
+                      onChange={(e) => setConcurso(e.target.value)}
+                      placeholder="0000000"
+                    />
+                  </Campo>
+                  <Campo label="Data da extração">
+                    <input
+                      type="date"
+                      className={botao.input + " num"}
+                      value={dataExtracao}
+                      onChange={(e) => setDataExtracao(e.target.value)}
+                    />
+                  </Campo>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-5">
+                  {PREMIOS.map((rotulo, i) => (
+                    <Campo key={rotulo} label={rotulo}>
+                      <input
+                        className={botao.input + " num"}
+                        value={premios[i] ?? ""}
+                        onChange={(e) => {
+                          const novos = [...premios];
+                          novos[i] = e.target.value;
+                          setPremios(novos);
+                        }}
+                        placeholder="000000"
+                      />
+                    </Campo>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {escolhida && modo === "sorteio_proprio" && (
+              <>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Campo
+                    label="Número sorteado ao vivo"
+                    ajuda={`${digitos} dígitos, de ${"0".repeat(digitos)} a ${"9".repeat(digitos)}`}
+                  >
+                    <input
+                      className={botao.input + " num"}
+                      value={numero}
+                      onChange={(e) => setNumero(e.target.value)}
+                      placeholder={"0".repeat(digitos)}
+                      inputMode="numeric"
+                    />
+                  </Campo>
+                  <Campo label="Data e hora do sorteio">
+                    <input
+                      type="datetime-local"
+                      className={botao.input + " num"}
+                      value={realizadoEm}
+                      onChange={(e) => setRealizadoEm(e.target.value)}
+                    />
+                  </Campo>
+                </div>
+
+                <Campo
+                  label="Link da gravação da transmissão"
+                  ajuda="É o que sustenta o resultado no lugar da extração da Caixa. Precisa ficar público e no ar."
+                >
                   <input
-                    className={botao.input + " num"}
-                    value={premios[i] ?? ""}
-                    onChange={(e) => {
-                      const novos = [...premios];
-                      novos[i] = e.target.value;
-                      setPremios(novos);
-                    }}
-                    placeholder="000000"
+                    className={botao.input}
+                    value={transmissao}
+                    onChange={(e) => setTransmissao(e.target.value)}
+                    placeholder="https://…"
                   />
                 </Campo>
-              ))}
-            </div>
+
+                <Campo
+                  label="Auditores presentes"
+                  ajuda="Um por linha, ou separados por vírgula. Nome e cargo."
+                >
+                  <textarea
+                    rows={3}
+                    className={botao.input}
+                    value={auditores}
+                    onChange={(e) => setAuditores(e.target.value)}
+                    placeholder={
+                      "Fulano de Tal — contabilidade\nSicrana de Tal — jurídico"
+                    }
+                  />
+                </Campo>
+              </>
+            )}
 
             {/* Resumo do que vai acontecer, antes do botão. */}
             {escolhida && (
@@ -224,9 +344,23 @@ export function AbaApuracao() {
                       </dd>
                     </>
                   )}
+                  {modo === "sorteio_proprio" && (
+                    <>
+                      <dt className="text-muted-foreground">Auditores</dt>
+                      <dd>
+                        {listaAuditores.length > 0
+                          ? listaAuditores.join(" · ")
+                          : "informe ao menos um"}
+                      </dd>
+                    </>
+                  )}
                   <dt className="text-muted-foreground">Número base</dt>
                   <dd className="num text-foreground">
-                    {base ? base : "informe o 1º prêmio"}
+                    {base
+                      ? base
+                      : modo === "loteria_federal"
+                        ? "informe o 1º prêmio"
+                        : "informe o número sorteado"}
                   </dd>
                 </dl>
                 <p className="mt-2 text-[12px] text-muted-foreground">
@@ -271,10 +405,7 @@ export function AbaApuracao() {
                 digitado={digitado}
                 aoDigitar={setDigitado}
                 aoConfirmar={() => mutar.mutate()}
-                aoCancelar={() => {
-                  setConfirmando(false);
-                  setDigitado("");
-                }}
+                aoCancelar={limpar}
                 ocupado={mutar.isPending}
               />
             )}
@@ -291,24 +422,41 @@ export function AbaApuracao() {
         ) : (
           <div className="grid gap-3">
             {apuradas.map((c) => {
-              const e = c.extracao_federal ?? null;
+              const a = c.apuracao ?? null;
+              const proprio =
+                (a?.modo ?? c.modo_apuracao) === "sorteio_proprio";
               return (
                 <div key={c.id} className="border border-border p-3">
                   <div className="flex flex-wrap items-baseline gap-2">
                     <span className="titulo text-[14px]">{c.nome}</span>
                     <Etiqueta tom="bom">apurada</Etiqueta>
+                    <Etiqueta>
+                      {proprio ? "sorteio próprio" : "Loteria Federal"}
+                    </Etiqueta>
                     <span className="ml-auto num text-[12px] text-muted-foreground">
                       {dataBR(c.data_apuracao)}
                     </span>
                   </div>
 
                   <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                    <Passo rotulo="1º prêmio" valor={e?.premios?.[0] ?? "—"} />
+                    <Passo
+                      rotulo={proprio ? "Sorteado ao vivo" : "1º prêmio"}
+                      valor={
+                        proprio
+                          ? a?.numero_base !== undefined
+                            ? String(a.numero_base).padStart(
+                                c.digitos_cartela,
+                                "0",
+                              )
+                            : "—"
+                          : (a?.premios?.[0] ?? "—")
+                      }
+                    />
                     <Passo
                       rotulo="Número base"
                       valor={
-                        e?.numero_base !== undefined
-                          ? String(e.numero_base).padStart(
+                        a?.numero_base !== undefined
+                          ? String(a.numero_base).padStart(
                               c.digitos_cartela,
                               "0",
                             )
@@ -316,7 +464,7 @@ export function AbaApuracao() {
                       }
                     />
                     <Passo
-                      rotulo="Sorteado"
+                      rotulo="Com dono"
                       valor={
                         c.numero_sorteado !== null
                           ? String(c.numero_sorteado).padStart(
@@ -329,24 +477,56 @@ export function AbaApuracao() {
                     />
                   </div>
 
-                  <p className="mt-2 text-[12px] text-muted-foreground">
-                    Concurso <span className="num">{e?.concurso ?? "—"}</span>
-                    {e?.data && (
-                      <>
-                        {" "}
-                        de <span className="num">{dataBR(String(e.data))}</span>
-                      </>
-                    )}
-                    {e?.apurado_em && (
-                      <>
-                        {" "}
-                        · apurado em{" "}
-                        <span className="num">
-                          {new Date(e.apurado_em).toLocaleString("pt-BR")}
-                        </span>
-                      </>
-                    )}
-                  </p>
+                  {proprio ? (
+                    <p className="mt-2 text-[12px] leading-snug text-muted-foreground">
+                      {a?.realizado_em && (
+                        <>
+                          Sorteado em{" "}
+                          <span className="num">
+                            {new Date(a.realizado_em).toLocaleString("pt-BR")}
+                          </span>
+                          .{" "}
+                        </>
+                      )}
+                      {a?.transmissao && (
+                        <>
+                          <a
+                            href={a.transmissao}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary underline underline-offset-2"
+                          >
+                            Gravação da transmissão
+                          </a>
+                          .{" "}
+                        </>
+                      )}
+                      {a?.auditores?.length ? (
+                        <>Auditores: {a.auditores.join(" · ")}.</>
+                      ) : null}
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-[12px] text-muted-foreground">
+                      Concurso <span className="num">{a?.concurso ?? "—"}</span>
+                      {a?.data && (
+                        <>
+                          {" "}
+                          de{" "}
+                          <span className="num">{dataBR(String(a.data))}</span>
+                        </>
+                      )}
+                    </p>
+                  )}
+
+                  {a?.apurado_em && (
+                    <p className="mt-1 text-[12px] text-muted-foreground">
+                      Apurado em{" "}
+                      <span className="num">
+                        {new Date(a.apurado_em).toLocaleString("pt-BR")}
+                      </span>
+                      {a.apurado_por && <> por {a.apurado_por}</>}
+                    </p>
+                  )}
                 </div>
               );
             })}

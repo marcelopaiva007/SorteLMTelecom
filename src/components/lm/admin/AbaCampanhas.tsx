@@ -35,8 +35,24 @@ type Campanha = {
   digitos_cartela: number;
   criterio_apuracao: string;
   criterio_congelado_em: string;
+  modo_apuracao: "loteria_federal" | "sorteio_proprio";
   status: string;
 };
+
+const MODOS = [
+  {
+    id: "loteria_federal" as const,
+    nome: "Loteria Federal",
+    resumo:
+      "O número vem dos últimos dígitos do 1º prêmio da extração da Caixa. A prova é pública e não depende da empresa.",
+  },
+  {
+    id: "sorteio_proprio" as const,
+    nome: "Sorteio próprio",
+    resumo:
+      "Sorteio em estúdio, com transmissão ao vivo e auditores internos. A prova é a gravação mais a assinatura de quem auditou.",
+  },
+];
 
 const VAZIA = {
   nome: "",
@@ -46,6 +62,7 @@ const VAZIA = {
   data_apuracao: "",
   digitos_cartela: 6,
   criterio_apuracao: "",
+  modo_apuracao: "loteria_federal" as "loteria_federal" | "sorteio_proprio",
 };
 
 export function AbaCampanhas() {
@@ -93,6 +110,7 @@ export function AbaCampanhas() {
       data_apuracao: c.data_apuracao,
       digitos_cartela: c.digitos_cartela,
       criterio_apuracao: c.criterio_apuracao,
+      modo_apuracao: c.modo_apuracao,
     });
   }
 
@@ -150,6 +168,11 @@ export function AbaCampanhas() {
                 >
                   {c.status}
                 </Etiqueta>
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  {c.modo_apuracao === "sorteio_proprio"
+                    ? "sorteio próprio"
+                    : "Loteria Federal"}
+                </div>
               </td>
               <td className={celula + " text-right whitespace-nowrap"}>
                 <button className={botao.link} onClick={() => editar(c)}>
@@ -237,6 +260,39 @@ export function AbaCampanhas() {
           </div>
 
           <div className="mt-4">
+            <span className="titulo text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
+              Como o número vencedor vai sair
+            </span>
+            <div className="mt-1 grid gap-2 md:grid-cols-2">
+              {MODOS.map((m) => {
+                const ativo = form.modo_apuracao === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    disabled={travado}
+                    onClick={() => setForm({ ...form, modo_apuracao: m.id })}
+                    className={`border p-3 text-left disabled:opacity-70 ${
+                      ativo
+                        ? "border-primary bg-primary/5"
+                        : "border-border bg-card"
+                    }`}
+                  >
+                    <span
+                      className={`titulo text-[13px] ${ativo ? "text-primary" : ""}`}
+                    >
+                      {m.nome}
+                    </span>
+                    <span className="mt-1 block text-[12px] leading-snug text-muted-foreground">
+                      {m.resumo}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-4">
             <Campo label="Critério de apuração">
               <textarea
                 rows={4}
@@ -251,7 +307,7 @@ export function AbaCampanhas() {
             {travado && emEdicao && (
               <Aviso tom="alerta">
                 <span className="titulo text-[11px] tracking-widest">
-                  Critério congelado
+                  Critério e forma de apuração congelados
                 </span>{" "}
                 desde{" "}
                 <span className="num">

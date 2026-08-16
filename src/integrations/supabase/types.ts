@@ -16,12 +16,14 @@ export type Database = {
     Tables: {
       campanhas: {
         Row: {
+          apuracao: Json | null;
           criado_em: string;
           criterio_apuracao: string;
           criterio_congelado_em: string;
           data_apuracao: string;
           digitos_cartela: number;
           extracao_federal: Json | null;
+          modo_apuracao: Database["public"]["Enums"]["modo_apuracao"];
           fim: string;
           ganhador_cliente_id: string | null;
           id: string;
@@ -32,12 +34,14 @@ export type Database = {
           status: Database["public"]["Enums"]["status_campanha"];
         };
         Insert: {
+          apuracao?: Json | null;
           criado_em?: string;
           criterio_apuracao: string;
           criterio_congelado_em?: string;
           data_apuracao: string;
           digitos_cartela?: number;
           extracao_federal?: Json | null;
+          modo_apuracao?: Database["public"]["Enums"]["modo_apuracao"];
           fim: string;
           ganhador_cliente_id?: string | null;
           id?: string;
@@ -48,12 +52,14 @@ export type Database = {
           status?: Database["public"]["Enums"]["status_campanha"];
         };
         Update: {
+          apuracao?: Json | null;
           criado_em?: string;
           criterio_apuracao?: string;
           criterio_congelado_em?: string;
           data_apuracao?: string;
           digitos_cartela?: number;
           extracao_federal?: Json | null;
+          modo_apuracao?: Database["public"]["Enums"]["modo_apuracao"];
           fim?: string;
           ganhador_cliente_id?: string | null;
           id?: string;
@@ -631,6 +637,23 @@ export type Database = {
         Returns: number[];
       };
       resumo_operacional: { Args: Record<PropertyKey, never>; Returns: Json };
+      resumo_visao_geral: { Args: Record<PropertyKey, never>; Returns: Json };
+      ler_chave_erp: { Args: Record<PropertyKey, never>; Returns: Json };
+      girar_chave_erp: { Args: Record<PropertyKey, never>; Returns: Json };
+      processar_eventos_admin: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
+      apurar_campanha_propria: {
+        Args: {
+          p_campanha_id: string;
+          p_numero: number;
+          p_realizado_em: string;
+          p_transmissao: string;
+          p_auditores: string[];
+        };
+        Returns: Json;
+      };
       sortear_numeros_livres: {
         Args: { p_campanha_id: string; p_quantidade: number };
         Returns: number[];
@@ -650,6 +673,7 @@ export type Database = {
       };
     };
     Enums: {
+      modo_apuracao: "loteria_federal" | "sorteio_proprio";
       status_campanha: "rascunho" | "aberta" | "encerrada" | "apurada";
       status_cliente: "ativo" | "cancelado" | "suspenso";
       tipo_evento:
@@ -781,6 +805,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      modo_apuracao: ["loteria_federal", "sorteio_proprio"],
       status_campanha: ["rascunho", "aberta", "encerrada", "apurada"],
       status_cliente: ["ativo", "cancelado", "suspenso"],
       tipo_evento: [
