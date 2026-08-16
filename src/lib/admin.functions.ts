@@ -704,3 +704,102 @@ export const salvarConfiguracao = createServerFn({ method: "POST" })
     }
     return { ok: true as const };
   });
+
+// ---------------------------------------------------------------------------
+// Chave de integração do ERP
+// ---------------------------------------------------------------------------
+//
+// A chave é o que o time do ERP precisa ter em mãos, então o painel mostra —
+// para um administrador já autenticado, o mesmo que já pode ver a base inteira.
+// Quando a chave vem do ambiente da hospedagem, o painel não tem como lê-la e
+// diz isso em vez de fingir que não existe chave nenhuma.
+
+export const chaveErp = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await exigirAdmin(supabase, userId);
+
+    if (process.env["ERP_CHAVE_INGESTAO"]) {
+      return {
+        ok: true as const,
+        origem: "ambiente" as const,
+        chave: null,
+        atualizadaEm: null,
+      };
+    }
+
+    const [{ supabaseAdmin }, { CHAVE_ERP }] = await Promise.all([
+      import("@/integrations/supabase/client.server"),
+      import("./erp.server"),
+    ]);
+
+    const { data, error } = await supabaseAdmin
+      .from("segredos")
+      .select("valor, atualizado_em")
+      .eq("chave", CHAVE_ERP)
+      .maybeSingle();
+
+    if (error) {
+      console.error("[chave_erp]", error);
+      return { ok: false as const, erro: "Não foi possível ler a chave." };
+    }
+
+    return {
+      ok: true as const,
+      origem: "banco" as const,
+      chave: data?.valor ?? null,
+      atualizadaEm: data?.atualizado_em ?? null,
+    };
+  });
+
+export const girarChaveErp = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await exigirAdmin(supabase, userId);
+
+    if (process.env["ERP_CHAVE_INGESTAO"]) {
+      return {
+        ok: false as const,
+        erro: "A chave vem do ambiente da hospedagem. Gire-a por lá.",
+      };
+    }
+
+    // 256 bits de aleatoriedade do sistema. O prefixo só serve para quem for
+    // ler o cabeçalho saber do que se trata.
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    const nova =
+      "erp_" +
+      btoa(String.fromCharCode(...bytes))
+        .replaceAll("+", "-")
+        .replaceAll("/", "_")
+        .replaceAll("=", "");
+
+    const [{ supabaseAdmin }, { CHAVE_ERP, esquecerChaveDeIngestao }] =
+      await Promise.all([
+        import("@/integrations/supabase/client.server"),
+        import("./erp.server"),
+      ]);
+
+    const { error } = await supabaseAdmin.from("segredos").upsert(
+      {
+        chave: CHAVE_ERP,
+        valor: nova,
+        descricao: "Cabeçalho x-erp-chave em POST /api/erp/eventos",
+        atualizado_em: new Date().toISOString(),
+      },
+      { onConflict: "chave" },
+    );
+
+    if (error) {
+      console.error("[girar_chave_erp]", error);
+      return { ok: false as const, erro: "Não foi possível gravar a chave." };
+    }
+
+    esquecerChaveDeIngestao();
+    // A chave nova nunca vai para a auditoria — só o fato de ter girado.
+    await auditar(supabase, "girar_chave_erp", null, null, null);
+    return { ok: true as const, chave: nova };
+  });

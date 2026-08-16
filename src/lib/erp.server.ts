@@ -9,7 +9,7 @@
 // depois de uma queda de rede.
 //
 // Autenticação por chave compartilhada no cabeçalho `x-erp-chave`, conferida
-// contra ERP_CHAVE_INGESTAO.
+// contra a chave de ingestão — ver `chaveDeIngestao()` para de onde ela vem.
 
 import { z } from "zod";
 import type { Json } from "@/integrations/supabase/types";
@@ -65,10 +65,53 @@ function soDigitos(v: string) {
   return (v || "").replace(/\D/g, "");
 }
 
+/** Nome da chave na tabela `segredos`. */
+export const CHAVE_ERP = "erp_chave_ingestao";
+
+// A leitura no banco é barata, mas o ERP pode postar em rajada. Um cache curto
+// evita uma consulta por requisição sem atrasar a virada da chave: depois de
+// girar, a nova vale em no máximo um minuto.
+let cache: { valor: string; ate: number } | null = null;
+
+/**
+ * De onde vem a chave, nesta ordem:
+ *   1. ERP_CHAVE_INGESTAO no ambiente, para quem prefere o segredo fora do banco;
+ *   2. a tabela `segredos`, que só a service_role enxerga e que o painel
+ *      consegue configurar sem depender do painel da hospedagem.
+ */
+export async function chaveDeIngestao(): Promise<string | null> {
+  const doAmbiente = process.env["ERP_CHAVE_INGESTAO"];
+  if (doAmbiente) return doAmbiente;
+
+  if (cache && cache.ate > Date.now()) return cache.valor;
+
+  const { supabaseAdmin } =
+    await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("segredos")
+    .select("valor")
+    .eq("chave", CHAVE_ERP)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[erp] falha ao ler a chave de ingestão", error.message);
+    return null;
+  }
+  if (!data?.valor) return null;
+
+  cache = { valor: data.valor, ate: Date.now() + 60_000 };
+  return data.valor;
+}
+
+/** Chamado depois de girar a chave, para a nova valer na hora. */
+export function esquecerChaveDeIngestao() {
+  cache = null;
+}
+
 export async function receberDoErp(request: Request): Promise<Response> {
-  const esperada = process.env["ERP_CHAVE_INGESTAO"];
+  const esperada = await chaveDeIngestao();
   if (!esperada) {
-    console.error("[erp] ERP_CHAVE_INGESTAO não configurada");
+    console.error("[erp] chave de ingestão não configurada");
     return json({ ok: false, erro: "Integração do ERP não configurada." }, 503);
   }
 
