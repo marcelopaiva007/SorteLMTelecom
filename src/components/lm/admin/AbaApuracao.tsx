@@ -1,8 +1,25 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { adminResumo, apurarCampanha } from "@/lib/admin.functions";
-import { Aviso, Campo, Painel, botao } from "./ui";
+import {
+  adminResumo,
+  adminVisaoGeral,
+  apurarCampanha,
+} from "@/lib/admin.functions";
+import {
+  Aviso,
+  Campo,
+  ConfirmacaoPerigosa,
+  Esqueleto,
+  ErroAoCarregar,
+  Etiqueta,
+  Painel,
+  Tabela,
+  Vazio,
+  botao,
+  celula,
+  texto,
+} from "./ui";
 
 type Campanha = {
   id: string;
@@ -12,7 +29,13 @@ type Campanha = {
   data_apuracao: string;
   digitos_cartela: number;
   numero_sorteado: number | null;
-  extracao_federal: unknown;
+  extracao_federal: {
+    concurso?: string;
+    data?: string;
+    premios?: string[];
+    numero_base?: number;
+    apurado_em?: string;
+  } | null;
 };
 
 const PREMIOS = [
@@ -23,15 +46,27 @@ const PREMIOS = [
   "5º prêmio",
 ];
 
+function dataBR(iso: string) {
+  return new Date(
+    iso + (iso.length === 10 ? "T12:00:00" : ""),
+  ).toLocaleDateString("pt-BR");
+}
+
 export function AbaApuracao() {
   const resumo = useServerFn(adminResumo);
+  const geral = useServerFn(adminVisaoGeral);
   const apurar = useServerFn(apurarCampanha);
   const qc = useQueryClient();
 
-  const { data } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["admin", "resumo"],
     queryFn: () => resumo({}),
   });
+  const { data: visao } = useQuery({
+    queryKey: ["admin", "visao-geral"],
+    queryFn: () => geral({}),
+  });
+
   const campanhas = (data?.campanhas ?? []) as Campanha[];
   const apuraveis = campanhas.filter(
     (c) => c.status === "aberta" || c.status === "encerrada",
@@ -43,10 +78,8 @@ export function AbaApuracao() {
   const [dataExtracao, setDataExtracao] = useState("");
   const [premios, setPremios] = useState<string[]>(["", "", "", "", ""]);
   const [erro, setErro] = useState<string | null>(null);
-  const [feito, setFeito] = useState<{ base: number; sorteado: number } | null>(
-    null,
-  );
   const [confirmando, setConfirmando] = useState(false);
+  const [digitado, setDigitado] = useState("");
 
   const escolhida = apuraveis.find((c) => c.id === id) ?? null;
   const digitos = escolhida?.digitos_cartela ?? 4;
@@ -54,6 +87,11 @@ export function AbaApuracao() {
   const base = primeiro
     ? primeiro.padStart(digitos, "0").slice(-digitos)
     : null;
+
+  // Os números já escolhidos só são conhecidos da campanha vigente; é a
+  // informação que falta para o operador saber o tamanho do que vai apurar.
+  const escolhidosNaVigente =
+    visao?.campanha?.id === id ? (visao?.escolhidos ?? null) : null;
 
   const mutar = useMutation({
     mutationFn: () =>
@@ -67,9 +105,9 @@ export function AbaApuracao() {
       }),
     onSuccess: (r) => {
       setConfirmando(false);
+      setDigitado("");
       if (r.ok) {
         setErro(null);
-        setFeito({ base: r.numeroBase, sorteado: r.numeroSorteado });
         qc.invalidateQueries({ queryKey: ["admin"] });
       } else {
         setErro(r.erro);
@@ -83,20 +121,27 @@ export function AbaApuracao() {
     dataExtracao !== "" &&
     primeiro !== "";
 
+  if (isLoading) return <Esqueleto linhas={6} />;
+  if (error) return <ErroAoCarregar />;
+
   return (
-    <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-      <Painel titulo="Apurar campanha">
-        <Aviso>
-          A apuração é feita uma vez só e não pode ser refeita. A partir do
-          número sorteado, a busca sobe até o primeiro número com dono; ao
-          chegar ao fim da cartela, continua do{" "}
-          <span className="num">{"0".repeat(digitos)}</span>.
+    <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
+      <Painel titulo="Apurar campanha" descricao="Ação definitiva" tom="perigo">
+        <Aviso tom="perigo">
+          <span className="titulo text-[12px] tracking-widest">
+            Não tem volta
+          </span>
+          <br />
+          Apurar grava o número sorteado e o ganhador, publica o resultado para
+          todos os clientes e tranca a campanha. Depois disso o ganhador não
+          pode ser trocado, nem por outra apuração.
         </Aviso>
 
         {apuraveis.length === 0 ? (
-          <Aviso tom="destaque">
-            Nenhuma campanha aberta ou encerrada para apurar.
-          </Aviso>
+          <Vazio>
+            Nenhuma campanha aberta ou encerrada para apurar. Uma campanha em
+            rascunho precisa ser aberta antes.
+          </Vazio>
         ) : (
           <div className="mt-3 grid gap-3">
             <Campo label="Campanha">
@@ -105,8 +150,9 @@ export function AbaApuracao() {
                 value={id}
                 onChange={(e) => {
                   setId(e.target.value);
-                  setFeito(null);
                   setErro(null);
+                  setConfirmando(false);
+                  setDigitado("");
                 }}
               >
                 <option value="">Selecione…</option>
@@ -147,7 +193,6 @@ export function AbaApuracao() {
                       const novos = [...premios];
                       novos[i] = e.target.value;
                       setPremios(novos);
-                      setFeito(null);
                     }}
                     placeholder="000000"
                   />
@@ -155,115 +200,188 @@ export function AbaApuracao() {
               ))}
             </div>
 
-            {base && (
-              <Aviso>
-                Número base: os <span className="num">{digitos}</span> últimos
-                dígitos do 1º prêmio dão{" "}
-                <span className="num text-foreground">{base}</span>.
+            {/* Resumo do que vai acontecer, antes do botão. */}
+            {escolhida && (
+              <div className="border border-border bg-muted p-3">
+                <div className={texto.rotulo}>Conferência antes de apurar</div>
+                <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[13px]">
+                  <dt className="text-muted-foreground">Campanha</dt>
+                  <dd>{escolhida.nome}</dd>
+                  <dt className="text-muted-foreground">Prêmio</dt>
+                  <dd>{escolhida.premio}</dd>
+                  <dt className="text-muted-foreground">Cartela</dt>
+                  <dd className="num">
+                    {Math.pow(10, digitos).toLocaleString("pt-BR")} números de{" "}
+                    {digitos} dígitos
+                  </dd>
+                  {escolhidosNaVigente !== null && (
+                    <>
+                      <dt className="text-muted-foreground">
+                        Números com dono
+                      </dt>
+                      <dd className="num">
+                        {escolhidosNaVigente.toLocaleString("pt-BR")}
+                      </dd>
+                    </>
+                  )}
+                  <dt className="text-muted-foreground">Número base</dt>
+                  <dd className="num text-foreground">
+                    {base ? base : "informe o 1º prêmio"}
+                  </dd>
+                </dl>
+                <p className="mt-2 text-[12px] text-muted-foreground">
+                  A busca sobe a partir do número base até o primeiro número com
+                  dono; ao chegar ao fim da cartela, continua do{" "}
+                  <span className="num">{"0".repeat(digitos)}</span>.
+                </p>
+              </div>
+            )}
+
+            {escolhidosNaVigente === 0 && (
+              <Aviso tom="perigo">
+                Nenhum número foi escolhido nesta campanha. Não há ganhador
+                possível — a apuração vai falhar.
               </Aviso>
             )}
 
-            {erro && <Aviso tom="destaque">{erro}</Aviso>}
-
-            {feito && (
-              <Aviso>
-                <span className="titulo text-[12px] tracking-widest">
-                  Campanha apurada
-                </span>
-                <br />
-                Número base{" "}
-                <span className="num">
-                  {String(feito.base).padStart(digitos, "0")}
-                </span>{" "}
-                · número sorteado{" "}
-                <span className="num text-foreground">
-                  {String(feito.sorteado).padStart(digitos, "0")}
-                </span>
-                . O resultado já aparece na tela do cliente.
-              </Aviso>
-            )}
+            {erro && <Aviso tom="perigo">{erro}</Aviso>}
 
             {!confirmando ? (
               <button
-                className={botao.primario + " mt-1"}
+                className={botao.perigo}
                 disabled={!pronto}
                 onClick={() => {
                   setErro(null);
                   setConfirmando(true);
                 }}
               >
-                Apurar
+                Apurar campanha
               </button>
             ) : (
-              <div className="mt-1 border border-destaque bg-destaque/10 p-3">
-                <p className="text-[12px] text-destaque">
-                  Confirma a apuração de <strong>{escolhida?.nome}</strong>?
-                  Esta ação é definitiva: o ganhador não pode ser trocado
-                  depois.
-                </p>
-                <div className="mt-3 flex gap-2">
-                  <button
-                    className={botao.primario}
-                    disabled={mutar.isPending}
-                    onClick={() => mutar.mutate()}
-                  >
-                    {mutar.isPending ? "Apurando…" : "Confirmar apuração"}
-                  </button>
-                  <button
-                    className={botao.secundario}
-                    onClick={() => setConfirmando(false)}
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
+              <ConfirmacaoPerigosa
+                alvo={escolhida?.nome ?? ""}
+                aviso={
+                  <>
+                    Isto vai definir o ganhador de{" "}
+                    <strong>{escolhida?.premio}</strong> e publicar o resultado
+                    para todos os clientes. Não é possível refazer.
+                  </>
+                }
+                rotuloAcao="Apurar e publicar o resultado"
+                digitado={digitado}
+                aoDigitar={setDigitado}
+                aoConfirmar={() => mutar.mutate()}
+                aoCancelar={() => {
+                  setConfirmando(false);
+                  setDigitado("");
+                }}
+                ocupado={mutar.isPending}
+              />
             )}
           </div>
         )}
       </Painel>
 
-      <Painel titulo="Campanhas já apuradas">
+      <Painel
+        titulo="Campanhas já apuradas"
+        descricao="Cadeia de conferência do resultado"
+      >
         {apuradas.length === 0 ? (
-          <p className="text-[13px] text-muted-foreground">
-            Nenhuma campanha apurada ainda.
-          </p>
+          <Vazio>Nenhuma campanha apurada ainda.</Vazio>
         ) : (
-          <table className="w-full text-[13px]">
-            <thead>
-              <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-                <th className="py-2">Campanha</th>
-                <th>Apuração</th>
-                <th className="text-right">Sorteado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {apuradas.map((c) => (
-                <tr key={c.id} className="border-b border-border/60">
-                  <td className="py-2 pr-2">
-                    <div className="titulo text-[13px]">{c.nome}</div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {c.premio}
-                    </div>
-                  </td>
-                  <td className="num text-[12px] text-muted-foreground">
-                    {new Date(c.data_apuracao + "T12:00:00").toLocaleDateString(
-                      "pt-BR",
+          <div className="grid gap-3">
+            {apuradas.map((c) => {
+              const e = c.extracao_federal ?? null;
+              return (
+                <div key={c.id} className="border border-border p-3">
+                  <div className="flex flex-wrap items-baseline gap-2">
+                    <span className="titulo text-[14px]">{c.nome}</span>
+                    <Etiqueta tom="bom">apurada</Etiqueta>
+                    <span className="ml-auto num text-[12px] text-muted-foreground">
+                      {dataBR(c.data_apuracao)}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                    <Passo rotulo="1º prêmio" valor={e?.premios?.[0] ?? "—"} />
+                    <Passo
+                      rotulo="Número base"
+                      valor={
+                        e?.numero_base !== undefined
+                          ? String(e.numero_base).padStart(
+                              c.digitos_cartela,
+                              "0",
+                            )
+                          : "—"
+                      }
+                    />
+                    <Passo
+                      rotulo="Sorteado"
+                      valor={
+                        c.numero_sorteado !== null
+                          ? String(c.numero_sorteado).padStart(
+                              c.digitos_cartela,
+                              "0",
+                            )
+                          : "—"
+                      }
+                      destaque
+                    />
+                  </div>
+
+                  <p className="mt-2 text-[12px] text-muted-foreground">
+                    Concurso <span className="num">{e?.concurso ?? "—"}</span>
+                    {e?.data && (
+                      <>
+                        {" "}
+                        de <span className="num">{dataBR(String(e.data))}</span>
+                      </>
                     )}
-                  </td>
-                  <td className="num text-right">
-                    {c.numero_sorteado !== null
-                      ? String(c.numero_sorteado).padStart(
-                          c.digitos_cartela,
-                          "0",
-                        )
-                      : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    {e?.apurado_em && (
+                      <>
+                        {" "}
+                        · apurado em{" "}
+                        <span className="num">
+                          {new Date(e.apurado_em).toLocaleString("pt-BR")}
+                        </span>
+                      </>
+                    )}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
         )}
+
+        <p className={texto.legenda + " mt-3"}>
+          Quem fez a apuração e quando fica registrado na aba de auditoria.
+        </p>
       </Painel>
+    </div>
+  );
+}
+
+function Passo({
+  rotulo,
+  valor,
+  destaque,
+}: {
+  rotulo: string;
+  valor: string;
+  destaque?: boolean;
+}) {
+  return (
+    <div
+      className={`border p-2 ${destaque ? "border-premio bg-premio/10" : "border-border"}`}
+    >
+      <div className="titulo text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+        {rotulo}
+      </div>
+      <div
+        className={`num mt-1 text-[18px] ${destaque ? "text-premio-texto" : ""}`}
+      >
+        {valor}
+      </div>
     </div>
   );
 }

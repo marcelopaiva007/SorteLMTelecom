@@ -91,6 +91,208 @@ export const adminResumo = createServerFn({ method: "GET" })
     };
   });
 
+/**
+ * Visão geral: os poucos números que respondem "o sorteio está saudável?".
+ *
+ * Seis indicadores, não mais. A leitura de painel degrada rápido depois disso,
+ * e o painel não tinha tela de entrada nenhuma — abria direto em campanhas,
+ * que é tela de configuração, não de acompanhamento.
+ */
+export const adminVisaoGeral = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await exigirAdmin(supabase, userId);
+
+    const { supabaseAdmin } =
+      await import("@/integrations/supabase/client.server");
+    const s = await import("@/lib/sorteio.server");
+
+    const campanha = await s.campanhaAtual();
+
+    const [estatisticas, creditosRes, bloqueadosRes, clientesRes, sincRes] =
+      await Promise.all([
+        campanha
+          ? supabaseAdmin.rpc("estatisticas_campanha", {
+              p_campanha_id: campanha.id,
+            })
+          : Promise.resolve({ data: null }),
+        campanha
+          ? supabaseAdmin
+              .from("creditos")
+              .select("quantidade")
+              .eq("campanha_id", campanha.id)
+          : Promise.resolve({ data: [] }),
+        supabaseAdmin
+          .from("eventos_bloqueados")
+          .select("*", { count: "exact", head: true }),
+        supabaseAdmin
+          .from("clientes")
+          .select("*", { count: "exact", head: true }),
+        supabaseAdmin
+          .from("sincronizacoes")
+          .select("status, iniciado_em")
+          .order("iniciado_em", { ascending: false })
+          .limit(5),
+      ]);
+
+    const est = (estatisticas.data ?? {}) as {
+      ocupados?: number;
+      participantes?: number;
+    };
+    const numerosConcedidos = (
+      (creditosRes.data ?? []) as { quantidade: number }[]
+    ).reduce((a, c) => a + c.quantidade, 0);
+
+    let falhasSeguidas = 0;
+    for (const linha of (sincRes.data ?? []) as { status: string }[]) {
+      if (linha.status === "falha") falhasSeguidas++;
+      else break;
+    }
+
+    const cartela = campanha ? Math.pow(10, campanha.digitos_cartela) : 0;
+    const escolhidos = est.ocupados ?? 0;
+
+    return {
+      campanha: campanha
+        ? {
+            id: campanha.id,
+            nome: campanha.nome,
+            premio: campanha.premio,
+            status: campanha.status,
+            inicio: campanha.inicio,
+            fim: campanha.fim,
+            data_apuracao: campanha.data_apuracao,
+            digitos_cartela: campanha.digitos_cartela,
+            numero_sorteado: campanha.numero_sorteado,
+          }
+        : null,
+      cartela,
+      escolhidos,
+      participantes: est.participantes ?? 0,
+      numerosConcedidos,
+      // Concedido menos escolhido: é quanto crédito está parado na mão dos
+      // clientes. Número alto quer dizer que a comunicação não chegou.
+      naEspera: Math.max(0, numerosConcedidos - escolhidos),
+      bloqueados: bloqueadosRes.count ?? 0,
+      clientes: clientesRes.count ?? 0,
+      ultimaLeitura:
+        ((sincRes.data ?? []) as { iniciado_em: string }[])[0]?.iniciado_em ??
+        null,
+      falhasSeguidas,
+    };
+  });
+
+/**
+ * Consulta de participante.
+ *
+ * É a função mais usada num back-office de sorteio e o painel não tinha:
+ * quando o cliente liga dizendo que não recebeu números, alguém precisa
+ * conseguir olhar o caso dele — o que entrou, o que foi barrado e por quê.
+ */
+export const adminCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ busca: z.string().trim().min(2).max(100) }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await exigirAdmin(supabase, userId);
+
+    const { supabaseAdmin } =
+      await import("@/integrations/supabase/client.server");
+    const termo = data.busca.trim();
+    const digitos = termo.replace(/\D/g, "");
+
+    const { data: encontrados } = await supabaseAdmin
+      .from("clientes")
+      .select(
+        "id, erp_id, cpf_cnpj, nome, whatsapp, status, meses_em_dia, autoexcluido_em",
+      )
+      .or(
+        [
+          `nome.ilike.%${termo}%`,
+          `erp_id.ilike.%${termo}%`,
+          ...(digitos.length >= 3 ? [`cpf_cnpj.ilike.%${digitos}%`] : []),
+        ].join(","),
+      )
+      .limit(20);
+
+    const lista = encontrados ?? [];
+    if (lista.length !== 1) {
+      return {
+        ok: true as const,
+        candidatos: lista.map((c) => ({
+          id: c.id,
+          nome: c.nome,
+          documento: c.cpf_cnpj,
+          erpId: c.erp_id,
+        })),
+        cliente: null,
+      };
+    }
+
+    const cliente = lista[0]!;
+    const [creditosRes, numerosRes, bloqRes] = await Promise.all([
+      supabaseAdmin
+        .from("creditos")
+        .select(
+          "id, quantidade, criado_em, detalhe, eventos(tipo, competencia, ocorrido_em)",
+        )
+        .eq("cliente_id", cliente.id)
+        .order("criado_em", { ascending: false })
+        .limit(100),
+      supabaseAdmin
+        .from("numeros")
+        .select("numero, escolhido_em, protocolo")
+        .eq("cliente_id", cliente.id)
+        .order("numero")
+        .limit(500),
+      supabaseAdmin
+        .from("eventos_bloqueados")
+        .select("id, tipo, motivo, detalhe, ocorrido_em")
+        .eq("cliente_id", cliente.id)
+        .order("ocorrido_em", { ascending: false })
+        .limit(50),
+    ]);
+
+    const creditos = ((creditosRes.data ?? []) as any[]).map((c) => ({
+      id: c.id,
+      quantidade: c.quantidade,
+      criado_em: c.criado_em,
+      tipo: c.eventos?.tipo ?? "",
+      competencia: c.eventos?.competencia ?? null,
+      detalhe: c.detalhe ?? null,
+    }));
+
+    const numeros = (numerosRes.data ?? []) as {
+      numero: number;
+      escolhido_em: string;
+      protocolo: string | null;
+    }[];
+    const totalCreditos = creditos.reduce((a, c) => a + c.quantidade, 0);
+
+    return {
+      ok: true as const,
+      candidatos: [],
+      cliente: {
+        id: cliente.id,
+        nome: cliente.nome,
+        documento: cliente.cpf_cnpj,
+        erpId: cliente.erp_id,
+        whatsapp: cliente.whatsapp,
+        status: cliente.status,
+        mesesEmDia: cliente.meses_em_dia,
+        autoexcluido: !!cliente.autoexcluido_em,
+        totalCreditos,
+        saldo: totalCreditos - numeros.length,
+        creditos,
+        numeros,
+        bloqueados: (bloqRes.data ?? []) as any[],
+      },
+    };
+  });
+
 export const adminAuditoria = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>

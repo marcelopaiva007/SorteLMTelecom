@@ -6,7 +6,24 @@ import {
   salvarCampanha,
   abrirCampanha,
 } from "@/lib/admin.functions";
-import { Aviso, Campo, Painel, botao } from "./ui";
+import {
+  Aviso,
+  Campo,
+  Esqueleto,
+  ErroAoCarregar,
+  Etiqueta,
+  Painel,
+  Tabela,
+  botao,
+  celula,
+} from "./ui";
+
+const TOM_STATUS = {
+  rascunho: "neutro",
+  aberta: "ativo",
+  encerrada: "alerta",
+  apurada: "bom",
+} as const;
 
 type Campanha = {
   id: string;
@@ -37,7 +54,7 @@ export function AbaCampanhas() {
   const abrir = useServerFn(abrirCampanha);
   const qc = useQueryClient();
 
-  const { data } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["admin", "resumo"],
     queryFn: () => resumo({}),
   });
@@ -82,68 +99,81 @@ export function AbaCampanhas() {
   const emEdicao = campanhas.find((c) => c.id === editando) ?? null;
   const travado = !!emEdicao && emEdicao.status !== "rascunho";
 
+  if (isLoading) return <Esqueleto linhas={6} />;
+  if (error) return <ErroAoCarregar />;
+
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
-      <Painel titulo="Campanhas">
-        <table className="w-full text-[13px]">
-          <thead>
-            <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-              <th className="py-2">Campanha</th>
-              <th>Período</th>
-              <th>Situação</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {campanhas.map((c) => (
-              <tr key={c.id} className="border-b border-border/60">
-                <td className="py-2 pr-2">
-                  <div className="titulo text-[13px]">{c.nome}</div>
-                  <div className="text-[11px] text-muted-foreground">
-                    {c.premio}
-                  </div>
-                </td>
-                <td className="num text-[12px] text-muted-foreground">
-                  {c.inicio.slice(8, 10)}/{c.inicio.slice(5, 7)} —{" "}
-                  {c.fim.slice(8, 10)}/{c.fim.slice(5, 7)}
-                </td>
-                <td className="text-[11px] uppercase tracking-wide">
-                  {c.status}
-                </td>
-                <td className="py-2 text-right">
-                  <button className={botao.link} onClick={() => editar(c)}>
-                    editar
-                  </button>
-                  {c.status === "rascunho" && (
-                    <button
-                      className={botao.link + " ml-2"}
-                      onClick={() => mutarAbrir.mutate(c.id)}
-                    >
-                      abrir
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <button
-          className={botao.secundario + " mt-3"}
-          onClick={() => {
-            setEditando("nova");
-            setErro(null);
-            setForm({ ...VAZIA });
-          }}
+      <Painel
+        titulo="Campanhas"
+        descricao="Uma aberta por vez"
+        acao={
+          <button
+            className={botao.secundario}
+            onClick={() => {
+              setEditando("nova");
+              setErro(null);
+              setForm({ ...VAZIA });
+            }}
+          >
+            Nova campanha
+          </button>
+        }
+      >
+        <Tabela
+          colunas={[
+            { titulo: "Campanha" },
+            { titulo: "Período" },
+            { titulo: "Situação" },
+            { titulo: "" },
+          ]}
+          vazio="Nenhuma campanha criada. Enquanto não houver uma aberta, nenhum evento do ERP vira crédito."
+          total={campanhas.length}
         >
-          Nova campanha
-        </button>
+          {campanhas.map((c) => (
+            <tr key={c.id} className="border-b border-border/60">
+              <td className={celula}>
+                <div className="titulo text-[14px]">{c.nome}</div>
+                <div className="text-[12px] text-muted-foreground">
+                  {c.premio}
+                </div>
+              </td>
+              <td className={celula + " num text-[13px] text-muted-foreground"}>
+                {c.inicio.slice(8, 10)}/{c.inicio.slice(5, 7)} —{" "}
+                {c.fim.slice(8, 10)}/{c.fim.slice(5, 7)}
+              </td>
+              <td className={celula}>
+                <Etiqueta
+                  tom={
+                    TOM_STATUS[c.status as keyof typeof TOM_STATUS] ?? "neutro"
+                  }
+                >
+                  {c.status}
+                </Etiqueta>
+              </td>
+              <td className={celula + " text-right whitespace-nowrap"}>
+                <button className={botao.link} onClick={() => editar(c)}>
+                  editar
+                </button>
+                {c.status === "rascunho" && (
+                  <button
+                    className={botao.link + " ml-3"}
+                    onClick={() => mutarAbrir.mutate(c.id)}
+                  >
+                    abrir
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </Tabela>
       </Painel>
 
       {editando && (
         <Painel
           titulo={editando === "nova" ? "Nova campanha" : "Editar campanha"}
         >
-          {erro && <Aviso tom="destaque">{erro}</Aviso>}
+          {erro && <Aviso tom="perigo">{erro}</Aviso>}
           <div className="grid gap-3 md:grid-cols-2">
             <Campo label="Nome">
               <input
@@ -219,7 +249,7 @@ export function AbaCampanhas() {
               />
             </Campo>
             {travado && emEdicao && (
-              <Aviso tom="destaque">
+              <Aviso tom="alerta">
                 <span className="titulo text-[11px] tracking-widest">
                   Critério congelado
                 </span>{" "}

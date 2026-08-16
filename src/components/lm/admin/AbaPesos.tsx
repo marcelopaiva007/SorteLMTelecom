@@ -3,7 +3,15 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { adminResumo, salvarRegras } from "@/lib/admin.functions";
 import { acumuladoEmMeses } from "@/lib/regras";
-import { Aviso, Campo, Indicador, Painel, botao } from "./ui";
+import {
+  Aviso,
+  Campo,
+  Esqueleto,
+  ErroAoCarregar,
+  Indicador,
+  Painel,
+  botao,
+} from "./ui";
 
 type Regra = {
   id: string;
@@ -30,7 +38,7 @@ export function AbaPesos() {
   const resumo = useServerFn(adminResumo);
   const salvar = useServerFn(salvarRegras);
   const qc = useQueryClient();
-  const { data } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["admin", "resumo"],
     queryFn: () => resumo({}),
   });
@@ -91,11 +99,14 @@ export function AbaPesos() {
 
   const num = (v: number | null) => (v === null ? "" : String(v));
 
+  if (isLoading) return <Esqueleto linhas={6} />;
+  if (error) return <ErroAoCarregar />;
+
   return (
     <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
       <Painel titulo="Pesos dos gatilhos">
         {congelado && (
-          <Aviso tom="destaque">
+          <Aviso tom="alerta">
             <span className="titulo text-[12px] tracking-widest">
               Pesos congelados
             </span>
@@ -195,8 +206,8 @@ export function AbaPesos() {
             </div>
           ))}
         </div>
-        {erro && <Aviso tom="destaque">{erro}</Aviso>}
-        {salvo && <Aviso>Pesos gravados na tabela de regras.</Aviso>}
+        {erro && <Aviso tom="perigo">{erro}</Aviso>}
+        {salvo && <Aviso tom="bom">Pesos gravados na tabela de regras.</Aviso>}
         <button
           className={botao.primario + " mt-3"}
           disabled={mutar.isPending || congelado}
@@ -222,7 +233,7 @@ export function AbaPesos() {
           />
         </div>
         {invertido ? (
-          <Aviso tom="destaque">
+          <Aviso tom="perigo">
             <span className="titulo text-[12px] tracking-widest">
               Pesos invertidos
             </span>

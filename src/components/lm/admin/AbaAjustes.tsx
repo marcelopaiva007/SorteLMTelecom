@@ -2,13 +2,15 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { adminResumo, salvarConfiguracao } from "@/lib/admin.functions";
-import { Aviso, Campo, Painel, botao } from "./ui";
+import { Aviso, Campo, Esqueleto, ErroAoCarregar, Painel, botao } from "./ui";
+
+type Configuracao = { chave: string; valor: string; descricao: string | null };
 
 export function AbaAjustes() {
   const resumo = useServerFn(adminResumo);
   const salvar = useServerFn(salvarConfiguracao);
   const qc = useQueryClient();
-  const { data } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["admin", "resumo"],
     queryFn: () => resumo({}),
   });
@@ -21,7 +23,7 @@ export function AbaAjustes() {
     if (data?.configuracoes) {
       setValores(
         Object.fromEntries(
-          data.configuracoes.map((c: any) => [c.chave, c.valor]),
+          (data.configuracoes as Configuracao[]).map((c) => [c.chave, c.valor]),
         ),
       );
     }
@@ -45,11 +47,17 @@ export function AbaAjustes() {
     },
   });
 
+  if (isLoading) return <Esqueleto linhas={5} />;
+  if (error) return <ErroAoCarregar />;
+
   return (
     <div className="max-w-2xl">
-      <Painel titulo="Dados da empresa">
+      <Painel
+        titulo="Dados da empresa"
+        descricao="Aparecem no selo de campanha oficial, em todas as telas do cliente"
+      >
         <div className="grid gap-3">
-          {(data?.configuracoes ?? []).map((c: any) => (
+          {((data?.configuracoes ?? []) as Configuracao[]).map((c) => (
             <Campo key={c.chave} label={c.descricao ?? c.chave}>
               <input
                 className={botao.input + (c.chave === "cnpj" ? " num" : "")}
@@ -62,16 +70,16 @@ export function AbaAjustes() {
             </Campo>
           ))}
         </div>
-        {erro && <Aviso tom="destaque">{erro}</Aviso>}
+        {erro && <Aviso tom="perigo">{erro}</Aviso>}
         {salvo && (
-          <Aviso>
+          <Aviso tom="bom">
             Dados gravados. O selo de campanha oficial já usa o novo valor.
           </Aviso>
         )}
-        <Aviso>
-          O CNPJ aparece no selo &ldquo;Campanha oficial L&M Telecom&rdquo; em
-          todas as telas do cliente. Substitua o valor fictício pelo CNPJ
-          verdadeiro da L&M Telecom.
+        <Aviso tom="alerta">
+          Confira o CNPJ antes de publicar: o valor que veio do exemplo é
+          fictício, e ele aparece no selo que sustenta a promessa de campanha
+          oficial.
         </Aviso>
         <button
           className={botao.primario + " mt-3"}
