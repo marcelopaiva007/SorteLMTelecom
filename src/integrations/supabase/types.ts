@@ -4,518 +4,710 @@ export type Json =
   | boolean
   | null
   | { [key: string]: Json | undefined }
-  | Json[]
+  | Json[];
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
-  }
+    PostgrestVersion: "14.15";
+  };
   public: {
     Tables: {
       campanhas: {
         Row: {
-          criado_em: string
-          criterio_apuracao: string
-          criterio_congelado_em: string
-          data_apuracao: string
-          digitos_cartela: number
-          extracao_federal: Json | null
-          fim: string
-          ganhador_cliente_id: string | null
-          id: string
-          inicio: string
-          nome: string
-          numero_sorteado: number | null
-          premio: string
-          status: Database["public"]["Enums"]["status_campanha"]
-        }
+          apuracao: Json | null;
+          criado_em: string;
+          criterio_apuracao: string;
+          criterio_congelado_em: string;
+          data_apuracao: string;
+          digitos_cartela: number;
+          extracao_federal: Json | null;
+          modo_apuracao: Database["public"]["Enums"]["modo_apuracao"];
+          fim: string;
+          ganhador_cliente_id: string | null;
+          id: string;
+          inicio: string;
+          nome: string;
+          numero_sorteado: number | null;
+          premio: string;
+          status: Database["public"]["Enums"]["status_campanha"];
+        };
         Insert: {
-          criado_em?: string
-          criterio_apuracao: string
-          criterio_congelado_em?: string
-          data_apuracao: string
-          digitos_cartela?: number
-          extracao_federal?: Json | null
-          fim: string
-          ganhador_cliente_id?: string | null
-          id?: string
-          inicio: string
-          nome: string
-          numero_sorteado?: number | null
-          premio: string
-          status?: Database["public"]["Enums"]["status_campanha"]
-        }
+          apuracao?: Json | null;
+          criado_em?: string;
+          criterio_apuracao: string;
+          criterio_congelado_em?: string;
+          data_apuracao: string;
+          digitos_cartela?: number;
+          extracao_federal?: Json | null;
+          modo_apuracao?: Database["public"]["Enums"]["modo_apuracao"];
+          fim: string;
+          ganhador_cliente_id?: string | null;
+          id?: string;
+          inicio: string;
+          nome: string;
+          numero_sorteado?: number | null;
+          premio: string;
+          status?: Database["public"]["Enums"]["status_campanha"];
+        };
         Update: {
-          criado_em?: string
-          criterio_apuracao?: string
-          criterio_congelado_em?: string
-          data_apuracao?: string
-          digitos_cartela?: number
-          extracao_federal?: Json | null
-          fim?: string
-          ganhador_cliente_id?: string | null
-          id?: string
-          inicio?: string
-          nome?: string
-          numero_sorteado?: number | null
-          premio?: string
-          status?: Database["public"]["Enums"]["status_campanha"]
-        }
+          apuracao?: Json | null;
+          criado_em?: string;
+          criterio_apuracao?: string;
+          criterio_congelado_em?: string;
+          data_apuracao?: string;
+          digitos_cartela?: number;
+          extracao_federal?: Json | null;
+          modo_apuracao?: Database["public"]["Enums"]["modo_apuracao"];
+          fim?: string;
+          ganhador_cliente_id?: string | null;
+          id?: string;
+          inicio?: string;
+          nome?: string;
+          numero_sorteado?: number | null;
+          premio?: string;
+          status?: Database["public"]["Enums"]["status_campanha"];
+        };
         Relationships: [
           {
-            foreignKeyName: "campanhas_ganhador_cliente_id_fkey"
-            columns: ["ganhador_cliente_id"]
-            isOneToOne: false
-            referencedRelation: "clientes"
-            referencedColumns: ["id"]
+            foreignKeyName: "campanhas_ganhador_cliente_id_fkey";
+            columns: ["ganhador_cliente_id"];
+            isOneToOne: false;
+            referencedRelation: "clientes";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       clientes: {
         Row: {
-          autoexcluido_em: string | null
-          cpf_cnpj: string
-          data_ativacao: string | null
-          data_cancelamento: string | null
-          erp_id: string
-          id: string
-          meses_em_dia: number
-          nome: string
-          sincronizado_em: string
-          status: Database["public"]["Enums"]["status_cliente"]
-          whatsapp: string | null
-        }
+          autoexcluido_em: string | null;
+          cpf_cnpj: string;
+          data_ativacao: string | null;
+          data_cancelamento: string | null;
+          erp_id: string;
+          id: string;
+          meses_em_dia: number;
+          nome: string;
+          sincronizado_em: string;
+          status: Database["public"]["Enums"]["status_cliente"];
+          whatsapp: string | null;
+        };
         Insert: {
-          autoexcluido_em?: string | null
-          cpf_cnpj: string
-          data_ativacao?: string | null
-          data_cancelamento?: string | null
-          erp_id: string
-          id?: string
-          meses_em_dia?: number
-          nome: string
-          sincronizado_em?: string
-          status?: Database["public"]["Enums"]["status_cliente"]
-          whatsapp?: string | null
-        }
+          autoexcluido_em?: string | null;
+          cpf_cnpj: string;
+          data_ativacao?: string | null;
+          data_cancelamento?: string | null;
+          erp_id: string;
+          id?: string;
+          meses_em_dia?: number;
+          nome: string;
+          sincronizado_em?: string;
+          status?: Database["public"]["Enums"]["status_cliente"];
+          whatsapp?: string | null;
+        };
         Update: {
-          autoexcluido_em?: string | null
-          cpf_cnpj?: string
-          data_ativacao?: string | null
-          data_cancelamento?: string | null
-          erp_id?: string
-          id?: string
-          meses_em_dia?: number
-          nome?: string
-          sincronizado_em?: string
-          status?: Database["public"]["Enums"]["status_cliente"]
-          whatsapp?: string | null
-        }
-        Relationships: []
-      }
+          autoexcluido_em?: string | null;
+          cpf_cnpj?: string;
+          data_ativacao?: string | null;
+          data_cancelamento?: string | null;
+          erp_id?: string;
+          id?: string;
+          meses_em_dia?: number;
+          nome?: string;
+          sincronizado_em?: string;
+          status?: Database["public"]["Enums"]["status_cliente"];
+          whatsapp?: string | null;
+        };
+        Relationships: [];
+      };
       codigos_acesso: {
         Row: {
-          cliente_id: string
-          codigo: string
-          criado_em: string
-          expira_em: string
-          id: string
-          usado_em: string | null
-        }
+          cliente_id: string;
+          codigo: string;
+          criado_em: string;
+          expira_em: string;
+          id: string;
+          invalidado_em: string | null;
+          tentativas: number;
+          usado_em: string | null;
+        };
         Insert: {
-          cliente_id: string
-          codigo: string
-          criado_em?: string
-          expira_em: string
-          id?: string
-          usado_em?: string | null
-        }
+          cliente_id: string;
+          codigo: string;
+          criado_em?: string;
+          expira_em: string;
+          id?: string;
+          invalidado_em?: string | null;
+          tentativas?: number;
+          usado_em?: string | null;
+        };
         Update: {
-          cliente_id?: string
-          codigo?: string
-          criado_em?: string
-          expira_em?: string
-          id?: string
-          usado_em?: string | null
-        }
+          cliente_id?: string;
+          codigo?: string;
+          criado_em?: string;
+          expira_em?: string;
+          id?: string;
+          invalidado_em?: string | null;
+          tentativas?: number;
+          usado_em?: string | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "codigos_acesso_cliente_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "clientes"
-            referencedColumns: ["id"]
+            foreignKeyName: "codigos_acesso_cliente_id_fkey";
+            columns: ["cliente_id"];
+            isOneToOne: false;
+            referencedRelation: "clientes";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       configuracoes: {
         Row: {
-          atualizado_em: string
-          chave: string
-          descricao: string | null
-          id: string
-          valor: string
-        }
+          atualizado_em: string;
+          chave: string;
+          descricao: string | null;
+          id: string;
+          valor: string;
+        };
         Insert: {
-          atualizado_em?: string
-          chave: string
-          descricao?: string | null
-          id?: string
-          valor: string
-        }
+          atualizado_em?: string;
+          chave: string;
+          descricao?: string | null;
+          id?: string;
+          valor: string;
+        };
         Update: {
-          atualizado_em?: string
-          chave?: string
-          descricao?: string | null
-          id?: string
-          valor?: string
-        }
-        Relationships: []
-      }
+          atualizado_em?: string;
+          chave?: string;
+          descricao?: string | null;
+          id?: string;
+          valor?: string;
+        };
+        Relationships: [];
+      };
+      auditoria_admin: {
+        Row: {
+          acao: string;
+          alvo: string | null;
+          antes: Json | null;
+          criado_em: string;
+          depois: Json | null;
+          email: string | null;
+          id: string;
+          user_id: string;
+        };
+        Insert: {
+          acao: string;
+          alvo?: string | null;
+          antes?: Json | null;
+          criado_em?: string;
+          depois?: Json | null;
+          email?: string | null;
+          id?: string;
+          user_id: string;
+        };
+        Update: {
+          acao?: string;
+          alvo?: string | null;
+          antes?: Json | null;
+          criado_em?: string;
+          depois?: Json | null;
+          email?: string | null;
+          id?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       creditos: {
         Row: {
-          campanha_id: string
-          cliente_id: string
-          criado_em: string
-          evento_id: string
-          id: string
-          quantidade: number
-        }
+          campanha_id: string;
+          cliente_id: string;
+          criado_em: string;
+          detalhe: Json;
+          evento_id: string;
+          id: string;
+          quantidade: number;
+          regra_id: string | null;
+        };
         Insert: {
-          campanha_id: string
-          cliente_id: string
-          criado_em?: string
-          evento_id: string
-          id?: string
-          quantidade: number
-        }
+          campanha_id: string;
+          cliente_id: string;
+          criado_em?: string;
+          detalhe?: Json;
+          evento_id: string;
+          id?: string;
+          quantidade: number;
+          regra_id?: string | null;
+        };
         Update: {
-          campanha_id?: string
-          cliente_id?: string
-          criado_em?: string
-          evento_id?: string
-          id?: string
-          quantidade?: number
-        }
+          campanha_id?: string;
+          cliente_id?: string;
+          criado_em?: string;
+          detalhe?: Json;
+          evento_id?: string;
+          id?: string;
+          quantidade?: number;
+          regra_id?: string | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "creditos_campanha_id_fkey"
-            columns: ["campanha_id"]
-            isOneToOne: false
-            referencedRelation: "campanhas"
-            referencedColumns: ["id"]
+            foreignKeyName: "creditos_campanha_id_fkey";
+            columns: ["campanha_id"];
+            isOneToOne: false;
+            referencedRelation: "campanhas";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "creditos_cliente_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "clientes"
-            referencedColumns: ["id"]
+            foreignKeyName: "creditos_cliente_id_fkey";
+            columns: ["cliente_id"];
+            isOneToOne: false;
+            referencedRelation: "clientes";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "creditos_evento_id_fkey"
-            columns: ["evento_id"]
-            isOneToOne: false
-            referencedRelation: "eventos"
-            referencedColumns: ["id"]
+            foreignKeyName: "creditos_evento_id_fkey";
+            columns: ["evento_id"];
+            isOneToOne: false;
+            referencedRelation: "eventos";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       eventos: {
         Row: {
-          chave_idempotente: string
-          cliente_id: string
-          competencia: string | null
-          id: string
-          ocorrido_em: string
-          payload_erp: Json
-          tipo: Database["public"]["Enums"]["tipo_evento"]
-        }
+          chave_idempotente: string;
+          cliente_id: string;
+          competencia: string | null;
+          id: string;
+          ocorrido_em: string;
+          payload_erp: Json;
+          tipo: Database["public"]["Enums"]["tipo_evento"];
+        };
         Insert: {
-          chave_idempotente: string
-          cliente_id: string
-          competencia?: string | null
-          id?: string
-          ocorrido_em?: string
-          payload_erp?: Json
-          tipo: Database["public"]["Enums"]["tipo_evento"]
-        }
+          chave_idempotente: string;
+          cliente_id: string;
+          competencia?: string | null;
+          id?: string;
+          ocorrido_em?: string;
+          payload_erp?: Json;
+          tipo: Database["public"]["Enums"]["tipo_evento"];
+        };
         Update: {
-          chave_idempotente?: string
-          cliente_id?: string
-          competencia?: string | null
-          id?: string
-          ocorrido_em?: string
-          payload_erp?: Json
-          tipo?: Database["public"]["Enums"]["tipo_evento"]
-        }
+          chave_idempotente?: string;
+          cliente_id?: string;
+          competencia?: string | null;
+          id?: string;
+          ocorrido_em?: string;
+          payload_erp?: Json;
+          tipo?: Database["public"]["Enums"]["tipo_evento"];
+        };
         Relationships: [
           {
-            foreignKeyName: "eventos_cliente_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "clientes"
-            referencedColumns: ["id"]
+            foreignKeyName: "eventos_cliente_id_fkey";
+            columns: ["cliente_id"];
+            isOneToOne: false;
+            referencedRelation: "clientes";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       eventos_bloqueados: {
         Row: {
-          chave_idempotente: string | null
-          cliente_id: string | null
-          detalhe: string | null
-          id: string
-          motivo: string
-          ocorrido_em: string
-          tipo: Database["public"]["Enums"]["tipo_evento"]
-        }
+          chave_idempotente: string | null;
+          cliente_id: string | null;
+          detalhe: string | null;
+          id: string;
+          motivo: string;
+          ocorrido_em: string;
+          tipo: Database["public"]["Enums"]["tipo_evento"];
+        };
         Insert: {
-          chave_idempotente?: string | null
-          cliente_id?: string | null
-          detalhe?: string | null
-          id?: string
-          motivo: string
-          ocorrido_em?: string
-          tipo: Database["public"]["Enums"]["tipo_evento"]
-        }
+          chave_idempotente?: string | null;
+          cliente_id?: string | null;
+          detalhe?: string | null;
+          id?: string;
+          motivo: string;
+          ocorrido_em?: string;
+          tipo: Database["public"]["Enums"]["tipo_evento"];
+        };
         Update: {
-          chave_idempotente?: string | null
-          cliente_id?: string | null
-          detalhe?: string | null
-          id?: string
-          motivo?: string
-          ocorrido_em?: string
-          tipo?: Database["public"]["Enums"]["tipo_evento"]
-        }
+          chave_idempotente?: string | null;
+          cliente_id?: string | null;
+          detalhe?: string | null;
+          id?: string;
+          motivo?: string;
+          ocorrido_em?: string;
+          tipo?: Database["public"]["Enums"]["tipo_evento"];
+        };
         Relationships: [
           {
-            foreignKeyName: "eventos_bloqueados_cliente_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "clientes"
-            referencedColumns: ["id"]
+            foreignKeyName: "eventos_bloqueados_cliente_id_fkey";
+            columns: ["cliente_id"];
+            isOneToOne: false;
+            referencedRelation: "clientes";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
+      limites_acesso: {
+        Row: {
+          chave: string;
+          contador: number;
+          janela_inicio: string;
+        };
+        Insert: {
+          chave: string;
+          contador?: number;
+          janela_inicio?: string;
+        };
+        Update: {
+          chave?: string;
+          contador?: number;
+          janela_inicio?: string;
+        };
+        Relationships: [];
+      };
       numeros: {
         Row: {
-          campanha_id: string
-          cliente_id: string
-          escolhido_em: string
-          id: string
-          numero: number
-          protocolo: string | null
-        }
+          campanha_id: string;
+          cliente_id: string;
+          escolhido_em: string;
+          id: string;
+          numero: number;
+          protocolo: string | null;
+        };
         Insert: {
-          campanha_id: string
-          cliente_id: string
-          escolhido_em?: string
-          id?: string
-          numero: number
-          protocolo?: string | null
-        }
+          campanha_id: string;
+          cliente_id: string;
+          escolhido_em?: string;
+          id?: string;
+          numero: number;
+          protocolo?: string | null;
+        };
         Update: {
-          campanha_id?: string
-          cliente_id?: string
-          escolhido_em?: string
-          id?: string
-          numero?: number
-          protocolo?: string | null
-        }
+          campanha_id?: string;
+          cliente_id?: string;
+          escolhido_em?: string;
+          id?: string;
+          numero?: number;
+          protocolo?: string | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "numeros_campanha_id_fkey"
-            columns: ["campanha_id"]
-            isOneToOne: false
-            referencedRelation: "campanhas"
-            referencedColumns: ["id"]
+            foreignKeyName: "numeros_campanha_id_fkey";
+            columns: ["campanha_id"];
+            isOneToOne: false;
+            referencedRelation: "campanhas";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "numeros_cliente_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "clientes"
-            referencedColumns: ["id"]
+            foreignKeyName: "numeros_cliente_id_fkey";
+            columns: ["cliente_id"];
+            isOneToOne: false;
+            referencedRelation: "clientes";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       perfis: {
         Row: {
-          criado_em: string
-          email: string | null
-          id: string
-          papel: string
-          user_id: string
-        }
+          criado_em: string;
+          email: string | null;
+          id: string;
+          papel: string;
+          user_id: string;
+        };
         Insert: {
-          criado_em?: string
-          email?: string | null
-          id?: string
-          papel?: string
-          user_id: string
-        }
+          criado_em?: string;
+          email?: string | null;
+          id?: string;
+          papel?: string;
+          user_id: string;
+        };
         Update: {
-          criado_em?: string
-          email?: string | null
-          id?: string
-          papel?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
+          criado_em?: string;
+          email?: string | null;
+          id?: string;
+          papel?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       regras: {
         Row: {
-          bonus_a_cada_meses: number
-          bonus_quantidade: number
-          campanha_id: string
-          carencia_dias: number
-          id: string
-          limite_meses: number | null
-          quantidade: number
-          teto_quantidade: number | null
-          tipo_evento: Database["public"]["Enums"]["tipo_evento"]
-        }
+          bonus_a_cada_meses: number;
+          bonus_quantidade: number;
+          campanha_id: string;
+          carencia_dias: number;
+          id: string;
+          limite_meses: number | null;
+          quantidade: number;
+          teto_quantidade: number | null;
+          tipo_evento: Database["public"]["Enums"]["tipo_evento"];
+        };
         Insert: {
-          bonus_a_cada_meses?: number
-          bonus_quantidade?: number
-          campanha_id: string
-          carencia_dias?: number
-          id?: string
-          limite_meses?: number | null
-          quantidade: number
-          teto_quantidade?: number | null
-          tipo_evento: Database["public"]["Enums"]["tipo_evento"]
-        }
+          bonus_a_cada_meses?: number;
+          bonus_quantidade?: number;
+          campanha_id: string;
+          carencia_dias?: number;
+          id?: string;
+          limite_meses?: number | null;
+          quantidade: number;
+          teto_quantidade?: number | null;
+          tipo_evento: Database["public"]["Enums"]["tipo_evento"];
+        };
         Update: {
-          bonus_a_cada_meses?: number
-          bonus_quantidade?: number
-          campanha_id?: string
-          carencia_dias?: number
-          id?: string
-          limite_meses?: number | null
-          quantidade?: number
-          teto_quantidade?: number | null
-          tipo_evento?: Database["public"]["Enums"]["tipo_evento"]
-        }
+          bonus_a_cada_meses?: number;
+          bonus_quantidade?: number;
+          campanha_id?: string;
+          carencia_dias?: number;
+          id?: string;
+          limite_meses?: number | null;
+          quantidade?: number;
+          teto_quantidade?: number | null;
+          tipo_evento?: Database["public"]["Enums"]["tipo_evento"];
+        };
         Relationships: [
           {
-            foreignKeyName: "regras_campanha_id_fkey"
-            columns: ["campanha_id"]
-            isOneToOne: false
-            referencedRelation: "campanhas"
-            referencedColumns: ["id"]
+            foreignKeyName: "regras_campanha_id_fkey";
+            columns: ["campanha_id"];
+            isOneToOne: false;
+            referencedRelation: "campanhas";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       sessoes: {
         Row: {
-          cliente_id: string
-          criado_em: string
-          expira_em: string
-          token: string
-        }
+          cliente_id: string;
+          criado_em: string;
+          expira_em: string;
+          token: string;
+        };
         Insert: {
-          cliente_id: string
-          criado_em?: string
-          expira_em: string
-          token: string
-        }
+          cliente_id: string;
+          criado_em?: string;
+          expira_em: string;
+          token: string;
+        };
         Update: {
-          cliente_id?: string
-          criado_em?: string
-          expira_em?: string
-          token?: string
-        }
+          cliente_id?: string;
+          criado_em?: string;
+          expira_em?: string;
+          token?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "sessoes_cliente_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "clientes"
-            referencedColumns: ["id"]
+            foreignKeyName: "sessoes_cliente_id_fkey";
+            columns: ["cliente_id"];
+            isOneToOne: false;
+            referencedRelation: "clientes";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
+      segredos: {
+        Row: {
+          atualizado_em: string;
+          chave: string;
+          descricao: string | null;
+          valor: string;
+        };
+        Insert: {
+          atualizado_em?: string;
+          chave: string;
+          descricao?: string | null;
+          valor: string;
+        };
+        Update: {
+          atualizado_em?: string;
+          chave?: string;
+          descricao?: string | null;
+          valor?: string;
+        };
+        Relationships: [];
+      };
       sincronizacoes: {
         Row: {
-          clientes_lidos: number
-          duplicados_barrados: number
-          erro: string | null
-          eventos_lidos: number
-          id: string
-          iniciado_em: string
-          origem: string
-          status: string
-          terminado_em: string | null
-        }
+          clientes_lidos: number;
+          duplicados_barrados: number;
+          erro: string | null;
+          eventos_lidos: number;
+          id: string;
+          iniciado_em: string;
+          origem: string;
+          status: string;
+          terminado_em: string | null;
+        };
         Insert: {
-          clientes_lidos?: number
-          duplicados_barrados?: number
-          erro?: string | null
-          eventos_lidos?: number
-          id?: string
-          iniciado_em?: string
-          origem?: string
-          status?: string
-          terminado_em?: string | null
-        }
+          clientes_lidos?: number;
+          duplicados_barrados?: number;
+          erro?: string | null;
+          eventos_lidos?: number;
+          id?: string;
+          iniciado_em?: string;
+          origem?: string;
+          status?: string;
+          terminado_em?: string | null;
+        };
         Update: {
-          clientes_lidos?: number
-          duplicados_barrados?: number
-          erro?: string | null
-          eventos_lidos?: number
-          id?: string
-          iniciado_em?: string
-          origem?: string
-          status?: string
-          terminado_em?: string | null
-        }
-        Relationships: []
-      }
-    }
+          clientes_lidos?: number;
+          duplicados_barrados?: number;
+          erro?: string | null;
+          eventos_lidos?: number;
+          id?: string;
+          iniciado_em?: string;
+          origem?: string;
+          status?: string;
+          terminado_em?: string | null;
+        };
+        Relationships: [];
+      };
+    };
     Views: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     Functions: {
-      is_admin: { Args: { _user_id?: string }; Returns: boolean }
-    }
+      apurar_campanha: {
+        Args: {
+          p_campanha_id: string;
+          p_concurso: string;
+          p_data_extracao: string;
+          p_premios: string[];
+        };
+        Returns: Json;
+      };
+      buscar_creditos: {
+        Args: { p_busca?: string; p_limite?: number };
+        Returns: {
+          chave: string;
+          competencia: string | null;
+          criado_em: string;
+          documento: string;
+          erp_id: string;
+          id: string;
+          nome: string;
+          quantidade: number;
+          tipo: Database["public"]["Enums"]["tipo_evento"];
+        }[];
+      };
+      conceder_creditos: { Args: { p_evento_id: string }; Returns: Json };
+      efeito_no_negocio: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          assinatura: number;
+          mensalidade_em_dia: number;
+          mes: string;
+          quitacao_debito: number;
+          reativacao: number;
+        }[];
+      };
+      estatisticas_campanha: {
+        Args: { p_campanha_id: string };
+        Returns: Json;
+      };
+      consumir_codigo_acesso: {
+        Args: { p_cliente_id: string; p_codigo: string };
+        Returns: boolean;
+      };
+      consumir_limite: {
+        Args: { p_chave: string; p_janela_segundos: number; p_maximo: number };
+        Returns: boolean;
+      };
+      emitir_codigo_acesso: {
+        Args: { p_cliente_id: string; p_codigo: string; p_expira_em: string };
+        Returns: undefined;
+      };
+      escolher_numeros: {
+        Args: {
+          p_campanha_id: string;
+          p_cliente_id: string;
+          p_numeros: number[];
+        };
+        Returns: Json;
+      };
+      is_admin: { Args: { _user_id?: string }; Returns: boolean };
+      limpar_expirados: {
+        Args: Record<PropertyKey, never>;
+        Returns: undefined;
+      };
+      numeros_ocupados_bloco: {
+        Args: { p_campanha_id: string; p_fim: number; p_inicio: number };
+        Returns: number[];
+      };
+      resumo_operacional: { Args: Record<PropertyKey, never>; Returns: Json };
+      resumo_visao_geral: { Args: Record<PropertyKey, never>; Returns: Json };
+      ler_chave_erp: { Args: Record<PropertyKey, never>; Returns: Json };
+      girar_chave_erp: { Args: Record<PropertyKey, never>; Returns: Json };
+      processar_eventos_admin: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
+      apurar_campanha_propria: {
+        Args: {
+          p_campanha_id: string;
+          p_numero: number;
+          p_realizado_em: string;
+          p_transmissao: string;
+          p_auditores: string[];
+        };
+        Returns: Json;
+      };
+      sortear_numeros_livres: {
+        Args: { p_campanha_id: string; p_quantidade: number };
+        Returns: number[];
+      };
+      processar_eventos_pendentes: {
+        Args: { p_limite?: number };
+        Returns: Json;
+      };
+      registrar_auditoria: {
+        Args: {
+          p_acao: string;
+          p_alvo?: string | null;
+          p_antes?: Json | null;
+          p_depois?: Json | null;
+        };
+        Returns: undefined;
+      };
+    };
     Enums: {
-      status_campanha: "rascunho" | "aberta" | "encerrada" | "apurada"
-      status_cliente: "ativo" | "cancelado" | "suspenso"
+      modo_apuracao: "loteria_federal" | "sorteio_proprio";
+      status_campanha: "rascunho" | "aberta" | "encerrada" | "apurada";
+      status_cliente: "ativo" | "cancelado" | "suspenso";
       tipo_evento:
-        | "assinatura"
-        | "reativacao"
-        | "quitacao_debito"
-        | "mensalidade_em_dia"
-    }
+        "assinatura" | "reativacao" | "quitacao_debito" | "mensalidade_em_dia";
+    };
     CompositeTypes: {
-      [_ in never]: never
-    }
-  }
-}
+      [_ in never]: never;
+    };
+  };
+};
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type DefaultSchema = DatabaseWithoutInternals[Extract<
+  keyof Database,
+  "public"
+>];
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
       DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R
+      Row: infer R;
     }
     ? R
     : never
@@ -523,99 +715,97 @@ export type Tables<
         DefaultSchema["Views"])
     ? (DefaultSchema["Tables"] &
         DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
+        Row: infer R;
       }
       ? R
       : never
-    : never
+    : never;
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
+      Insert: infer I;
     }
     ? I
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
     ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
+        Insert: infer I;
       }
       ? I
       : never
-    : never
+    : never;
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
+      Update: infer U;
     }
     ? U
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
     ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
+        Update: infer U;
       }
       ? U
       : never
-    : never
+    : never;
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
+    : never;
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
+    : never;
 
 export const Constants = {
   public: {
     Enums: {
+      modo_apuracao: ["loteria_federal", "sorteio_proprio"],
       status_campanha: ["rascunho", "aberta", "encerrada", "apurada"],
       status_cliente: ["ativo", "cancelado", "suspenso"],
       tipo_evento: [
@@ -626,4 +816,4 @@ export const Constants = {
       ],
     },
   },
-} as const
+} as const;

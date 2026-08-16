@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  testes:
+    name: Testes do núcleo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # As dependências do projeto vivem num registro privado da Lovable, que
+      # não é alcançável aqui. Por isso o CI instala só o que precisa para
+      # rodar os testes de regra de negócio, que não dependem do resto da
+      # árvore. Quando houver credencial do registro no repositório, dá para
+      # trocar isto por `npm ci` e ligar lint e typecheck abaixo.
+      - name: Instalar o executor de testes
+        run: npm install --no-save --no-audit --no-fund vitest@^3
+
+      - name: Rodar os testes
+        run: npx vitest run
+
+  formato:
+    name: Formatação
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar o formatador
+        run: npm install --no-save --no-audit --no-fund prettier@^3
+
+      # Só o código escrito à mão. Os componentes shadcn e o arquivo gerado de
+      # tipos ficam de fora enquanto a dívida de formatação do projeto não é
+      # zerada de uma vez.
+      - name: Conferir formatação
+        run: npx prettier --check "src/lib/**/*.ts" "src/hooks/**/*.ts" "src/routes/**/*.tsx" "src/components/lm/**/*.tsx"

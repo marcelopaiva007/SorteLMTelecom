@@ -1,9 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { CriterioCongelado, Layout, Progresso } from "@/components/lm/Layout";
 import { usePainel } from "@/hooks/usePainel";
-import { escolherNumeros } from "@/lib/sorteio.functions";
+import {
+  escolherNumeros,
+  ocupadosDoBloco,
+  sortearLivres,
+} from "@/lib/sorteio.functions";
 import { formatarNumero } from "@/lib/sessao";
 
 export const Route = createFileRoute("/cartela")({
@@ -12,27 +17,43 @@ export const Route = createFileRoute("/cartela")({
       { title: "Cartela — Sorteio LM" },
       {
         name: "description",
-        content: "Escolha seus números na cartela do Sorteio LM. Números ocupados aparecem riscados; o botão Sorte da casa preenche o restante.",
+        content:
+          "Escolha seus números na cartela do Sorteio LM. Números ocupados aparecem riscados; o botão Sorte da casa preenche o restante.",
       },
       { property: "og:title", content: "Cartela — Sorteio LM" },
-      { property: "og:description", content: "Escolha livremente seus números, como numa rifa — mas de graça." },
+      {
+        property: "og:description",
+        content:
+          "Escolha livremente seus números, como numa rifa — mas de graça.",
+      },
     ],
   }),
   component: Cartela,
 });
 
 function Cartela() {
-  const { data, isLoading, token, refetch } = usePainel();
+  const { data, isLoading, refetch } = usePainel();
   const navigate = useNavigate();
   const confirmar = useServerFn(escolherNumeros);
+  const buscarBloco = useServerFn(ocupadosDoBloco);
+  const sortear = useServerFn(sortearLivres);
   const [bloco, setBloco] = useState(0);
   const [selecao, setSelecao] = useState<number[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [sorteando, setSorteando] = useState(false);
+
+  // Só a centena visível vem do servidor. Antes chegava a cartela inteira — e
+  // chegava cortada no limite da API, então número com dono aparecia livre.
+  const { data: blocoAtual, isFetching: carregandoBloco } = useQuery({
+    queryKey: ["cartela", "bloco", bloco],
+    queryFn: () => buscarBloco({ data: { inicio: bloco * 100 } }),
+    placeholderData: (anterior) => anterior,
+  });
 
   const ocupados = useMemo(
-    () => new Set(data && data.ok ? data.ocupados : []),
-    [data],
+    () => new Set(blocoAtual?.numeros ?? []),
+    [blocoAtual],
   );
   const meus = useMemo(
     () => new Set(data && data.ok ? data.meusNumeros.map((n) => n.numero) : []),
@@ -47,7 +68,22 @@ function Cartela() {
     );
   }
 
-  const digitos = data.campanha?.digitos_cartela ?? 6;
+  // Sem campanha não existe cartela: o tamanho dela vem de digitos_cartela.
+  // O antigo fallback de 6 dígitos tentava desenhar 1.000.000 de botões.
+  if (!data.campanha) {
+    return (
+      <Layout>
+        <div className="border border-border bg-card p-4">
+          <h1 className="text-2xl leading-none">Sem campanha aberta</h1>
+          <p className="mt-2 text-[13px] text-muted-foreground">
+            A cartela abre quando a próxima campanha começar.
+          </p>
+        </div>
+      </Layout>
+    );
+  }
+
+  const digitos = data.campanha.digitos_cartela;
   const total = Math.pow(10, digitos);
   const blocos = total / 100;
   const saldo = data.saldo;
@@ -62,25 +98,24 @@ function Cartela() {
     });
   }
 
-  function sorteDaCasa() {
+  // O sorteio acontece no servidor, que enxerga a cartela inteira. O navegador
+  // não tem como saber quais números estão livres fora da centena visível.
+  async function sorteDaCasa() {
+    if (restante <= 0) return;
     setErro(null);
-    const livres: number[] = [];
-    for (let n = 0; n < total; n++) {
-      if (!ocupados.has(n) && !selecao.includes(n)) livres.push(n);
-    }
-    const escolhidos = [...selecao];
-    while (escolhidos.length < saldo && livres.length) {
-      const i = Math.floor(Math.random() * livres.length);
-      escolhidos.push(livres.splice(i, 1)[0]!);
-    }
-    setSelecao(escolhidos);
+    setSorteando(true);
+    const r = await sortear({ data: { quantidade: restante } });
+    setSorteando(false);
+    if (!r.ok) return setErro(r.erro);
+    const novos = r.numeros.filter((n) => !selecao.includes(n));
+    setSelecao([...selecao, ...novos].slice(0, saldo));
   }
 
   async function enviar() {
-    if (!token || !selecao.length) return;
+    if (!selecao.length) return;
     setEnviando(true);
     setErro(null);
-    const r = await confirmar({ data: { token, numeros: selecao } });
+    const r = await confirmar({ data: { numeros: selecao } });
     setEnviando(false);
     if (!r.ok) {
       setErro(r.erro);
@@ -88,7 +123,10 @@ function Cartela() {
       return;
     }
     setSelecao([]);
-    navigate({ to: "/comprovante/$protocolo", params: { protocolo: r.protocolo } });
+    navigate({
+      to: "/comprovante/$protocolo",
+      params: { protocolo: r.protocolo },
+    });
   }
 
   const inicio = bloco * 100;
@@ -111,10 +149,10 @@ function Cartela() {
             <span className="num text-2xl text-primary">{restante}</span>
           </div>
           <div className="mt-2">
-            <Progresso valor={(data.ocupados.length / total) * 100} />
+            <Progresso valor={(data.ocupados / total) * 100} />
             <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
               <span className="num">
-                {data.ocupados.length}/{total} preenchidos
+                {data.ocupados}/{total} preenchidos
               </span>
               <span className="num">{data.participantes} participantes</span>
             </div>
@@ -131,15 +169,15 @@ function Cartela() {
         <div className="flex items-center gap-2">
           <button
             onClick={sorteDaCasa}
-            disabled={restante <= 0}
-            className="titulo flex-1 border border-primary px-3 py-2 text-[12px] tracking-widest text-primary disabled:opacity-40"
+            disabled={restante <= 0 || sorteando}
+            className="titulo flex-1 border border-primary px-3 py-3 text-[12px] tracking-widest text-primary disabled:opacity-40"
           >
-            Sorte da casa
+            {sorteando ? "Sorteando…" : "Sorte da casa"}
           </button>
           <button
             onClick={() => setSelecao([])}
             disabled={!selecao.length}
-            className="titulo flex-1 border border-border px-3 py-2 text-[12px] tracking-widest text-muted-foreground disabled:opacity-40"
+            className="titulo flex-1 border border-border px-3 py-3 text-[12px] tracking-widest text-muted-foreground disabled:opacity-40"
           >
             Limpar
           </button>
@@ -175,10 +213,16 @@ function Cartela() {
             return (
               <button
                 key={n}
-                disabled={ocupado || meu}
+                disabled={ocupado || meu || carregandoBloco}
+                aria-label={`Número ${formatarNumero(n, digitos)}${
+                  ocupado ? ", já escolhido" : meu ? ", seu" : ""
+                }`}
+                aria-pressed={sel}
                 onClick={() => alternar(n)}
                 className={[
-                  "num border px-1 py-2 text-[12px]",
+                  // min-h de 44px: alvo de toque abaixo disso faz o cliente
+                  // errar o número num grid de 100 botões.
+                  "num min-h-11 border px-1 py-2 text-[12px]",
                   ocupado
                     ? "border-border bg-muted text-muted-foreground line-through opacity-60"
                     : meu

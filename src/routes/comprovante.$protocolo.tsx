@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { Layout, SeloOficial } from "@/components/lm/Layout";
 import { buscarComprovante } from "@/lib/sorteio.functions";
-import { dataHoraBR, formatarNumero, lerToken } from "@/lib/sessao";
+import { dataHoraBR, formatarNumero } from "@/lib/sessao";
 
 export const Route = createFileRoute("/comprovante/$protocolo")({
   head: () => ({
@@ -11,10 +11,14 @@ export const Route = createFileRoute("/comprovante/$protocolo")({
       { title: "Comprovante de escolha — Sorteio LM" },
       {
         name: "description",
-        content: "Comprovante com os números escolhidos, protocolo, data e hora da sua participação no Sorteio LM.",
+        content:
+          "Comprovante com os números escolhidos, protocolo, data e hora da sua participação no Sorteio LM.",
       },
       { property: "og:title", content: "Comprovante — Sorteio LM" },
-      { property: "og:description", content: "Seus números confirmados no Sorteio L&M Telecom." },
+      {
+        property: "og:description",
+        content: "Seus números confirmados no Sorteio L&M Telecom.",
+      },
     ],
   }),
   component: Comprovante,
@@ -23,15 +27,39 @@ export const Route = createFileRoute("/comprovante/$protocolo")({
 function Comprovante() {
   const { protocolo } = Route.useParams();
   const fn = useServerFn(buscarComprovante);
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["comprovante", protocolo],
-    queryFn: () => fn({ data: { token: lerToken() ?? "", protocolo } }),
+    queryFn: () => fn({ data: { protocolo } }),
   });
 
-  if (isLoading || !data || !data.ok) {
+  if (isLoading) {
     return (
       <Layout>
         <p className="text-sm text-muted-foreground">Carregando comprovante…</p>
+      </Layout>
+    );
+  }
+
+  // Antes, qualquer falha aqui virava "Carregando…" para sempre.
+  if (error || !data || !data.ok) {
+    return (
+      <Layout>
+        <div className="space-y-3 border border-destaque bg-card p-4">
+          <h1 className="text-xl leading-none text-destaque">
+            Comprovante indisponível
+          </h1>
+          <p className="text-[13px] text-muted-foreground">
+            {data && !data.ok && "erro" in data
+              ? data.erro
+              : "Não foi possível carregar este comprovante agora."}
+          </p>
+          <Link
+            to="/meus-numeros"
+            className="titulo block border border-primary px-3 py-3 text-center text-[12px] tracking-widest text-primary"
+          >
+            Ver meus números
+          </Link>
+        </div>
       </Layout>
     );
   }
@@ -44,7 +72,9 @@ function Comprovante() {
         <div className="border border-primary bg-card">
           <div className="border-b border-border px-4 py-2">
             <h1 className="text-xl leading-none">Números confirmados</h1>
-            <p className="text-[11px] text-muted-foreground">{data.campanha?.premio}</p>
+            <p className="text-[11px] text-muted-foreground">
+              {data.campanha?.premio}
+            </p>
           </div>
 
           <div className="grid grid-cols-4 gap-1 p-3">
@@ -53,7 +83,7 @@ function Comprovante() {
                 key={n.numero}
                 className="num border border-primary bg-primary px-1 py-2 text-center text-[13px] text-primary-foreground"
               >
-                {formatarNumero(n.numero, data.campanha?.digitos_cartela ?? 6)}
+                {formatarNumero(n.numero, data.campanha?.digitos_cartela ?? 4)}
               </span>
             ))}
           </div>
@@ -61,13 +91,23 @@ function Comprovante() {
           <div className="serrilha" />
 
           <dl className="grid grid-cols-2 gap-y-2 p-4 text-[12px]">
-            <dt className="titulo tracking-widest text-muted-foreground">Protocolo</dt>
+            <dt className="titulo tracking-widest text-muted-foreground">
+              Protocolo
+            </dt>
             <dd className="num text-right">{data.protocolo}</dd>
-            <dt className="titulo tracking-widest text-muted-foreground">Data e hora</dt>
-            <dd className="num text-right">{quando ? dataHoraBR(quando) : "—"}</dd>
-            <dt className="titulo tracking-widest text-muted-foreground">Titular</dt>
+            <dt className="titulo tracking-widest text-muted-foreground">
+              Data e hora
+            </dt>
+            <dd className="num text-right">
+              {quando ? dataHoraBR(quando) : "—"}
+            </dd>
+            <dt className="titulo tracking-widest text-muted-foreground">
+              Titular
+            </dt>
             <dd className="text-right">{data.nome}</dd>
-            <dt className="titulo tracking-widest text-muted-foreground">Quantidade</dt>
+            <dt className="titulo tracking-widest text-muted-foreground">
+              Quantidade
+            </dt>
             <dd className="num text-right">{data.numeros.length}</dd>
           </dl>
         </div>

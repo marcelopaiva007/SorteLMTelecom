@@ -1,8 +1,29 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { adminResumo, salvarCampanha, abrirCampanha } from "@/lib/admin.functions";
-import { Aviso, Campo, Painel, botao } from "./ui";
+import {
+  adminResumo,
+  salvarCampanha,
+  abrirCampanha,
+} from "@/lib/admin.functions";
+import {
+  Aviso,
+  Campo,
+  Esqueleto,
+  ErroAoCarregar,
+  Etiqueta,
+  Painel,
+  Tabela,
+  botao,
+  celula,
+} from "./ui";
+
+const TOM_STATUS = {
+  rascunho: "neutro",
+  aberta: "ativo",
+  encerrada: "alerta",
+  apurada: "bom",
+} as const;
 
 type Campanha = {
   id: string;
@@ -14,8 +35,24 @@ type Campanha = {
   digitos_cartela: number;
   criterio_apuracao: string;
   criterio_congelado_em: string;
+  modo_apuracao: "loteria_federal" | "sorteio_proprio";
   status: string;
 };
+
+const MODOS = [
+  {
+    id: "loteria_federal" as const,
+    nome: "Loteria Federal",
+    resumo:
+      "O número vem dos últimos dígitos do 1º prêmio da extração da Caixa. A prova é pública e não depende da empresa.",
+  },
+  {
+    id: "sorteio_proprio" as const,
+    nome: "Sorteio próprio",
+    resumo:
+      "Sorteio em estúdio, com transmissão ao vivo e auditores internos. A prova é a gravação mais a assinatura de quem auditou.",
+  },
+];
 
 const VAZIA = {
   nome: "",
@@ -25,6 +62,7 @@ const VAZIA = {
   data_apuracao: "",
   digitos_cartela: 6,
   criterio_apuracao: "",
+  modo_apuracao: "loteria_federal" as "loteria_federal" | "sorteio_proprio",
 };
 
 export function AbaCampanhas() {
@@ -33,7 +71,10 @@ export function AbaCampanhas() {
   const abrir = useServerFn(abrirCampanha);
   const qc = useQueryClient();
 
-  const { data } = useQuery({ queryKey: ["admin", "resumo"], queryFn: () => resumo({}) });
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["admin", "resumo"],
+    queryFn: () => resumo({}),
+  });
   const campanhas = (data?.campanhas ?? []) as Campanha[];
 
   const [editando, setEditando] = useState<string | "nova" | null>(null);
@@ -41,7 +82,8 @@ export function AbaCampanhas() {
   const [erro, setErro] = useState<string | null>(null);
 
   const mutar = useMutation({
-    mutationFn: (payload: typeof VAZIA & { id?: string }) => salvar({ data: payload }),
+    mutationFn: (payload: typeof VAZIA & { id?: string }) =>
+      salvar({ data: payload }),
 
     onSuccess: (r) => {
       if (r.ok) {
@@ -68,68 +110,93 @@ export function AbaCampanhas() {
       data_apuracao: c.data_apuracao,
       digitos_cartela: c.digitos_cartela,
       criterio_apuracao: c.criterio_apuracao,
+      modo_apuracao: c.modo_apuracao,
     });
   }
 
   const emEdicao = campanhas.find((c) => c.id === editando) ?? null;
   const travado = !!emEdicao && emEdicao.status !== "rascunho";
 
+  if (isLoading) return <Esqueleto linhas={6} />;
+  if (error) return <ErroAoCarregar />;
+
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
-      <Painel titulo="Campanhas">
-        <table className="w-full text-[13px]">
-          <thead>
-            <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-              <th className="py-2">Campanha</th>
-              <th>Período</th>
-              <th>Situação</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {campanhas.map((c) => (
-              <tr key={c.id} className="border-b border-border/60">
-                <td className="py-2 pr-2">
-                  <div className="titulo text-[13px]">{c.nome}</div>
-                  <div className="text-[11px] text-muted-foreground">{c.premio}</div>
-                </td>
-                <td className="num text-[12px] text-muted-foreground">
-                  {c.inicio.slice(8, 10)}/{c.inicio.slice(5, 7)} — {c.fim.slice(8, 10)}/
-                  {c.fim.slice(5, 7)}
-                </td>
-                <td className="text-[11px] uppercase tracking-wide">{c.status}</td>
-                <td className="py-2 text-right">
-                  <button className={botao.link} onClick={() => editar(c)}>
-                    editar
-                  </button>
-                  {c.status === "rascunho" && (
-                    <button
-                      className={botao.link + " ml-2"}
-                      onClick={() => mutarAbrir.mutate(c.id)}
-                    >
-                      abrir
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <button
-          className={botao.secundario + " mt-3"}
-          onClick={() => {
-            setEditando("nova");
-            setErro(null);
-            setForm({ ...VAZIA });
-          }}
+      <Painel
+        titulo="Campanhas"
+        descricao="Uma aberta por vez"
+        acao={
+          <button
+            className={botao.secundario}
+            onClick={() => {
+              setEditando("nova");
+              setErro(null);
+              setForm({ ...VAZIA });
+            }}
+          >
+            Nova campanha
+          </button>
+        }
+      >
+        <Tabela
+          colunas={[
+            { titulo: "Campanha" },
+            { titulo: "Período" },
+            { titulo: "Situação" },
+            { titulo: "" },
+          ]}
+          vazio="Nenhuma campanha criada. Enquanto não houver uma aberta, nenhum evento do ERP vira crédito."
+          total={campanhas.length}
         >
-          Nova campanha
-        </button>
+          {campanhas.map((c) => (
+            <tr key={c.id} className="border-b border-border/60">
+              <td className={celula}>
+                <div className="titulo text-[14px]">{c.nome}</div>
+                <div className="text-[12px] text-muted-foreground">
+                  {c.premio}
+                </div>
+              </td>
+              <td className={celula + " num text-[13px] text-muted-foreground"}>
+                {c.inicio.slice(8, 10)}/{c.inicio.slice(5, 7)} —{" "}
+                {c.fim.slice(8, 10)}/{c.fim.slice(5, 7)}
+              </td>
+              <td className={celula}>
+                <Etiqueta
+                  tom={
+                    TOM_STATUS[c.status as keyof typeof TOM_STATUS] ?? "neutro"
+                  }
+                >
+                  {c.status}
+                </Etiqueta>
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  {c.modo_apuracao === "sorteio_proprio"
+                    ? "sorteio próprio"
+                    : "Loteria Federal"}
+                </div>
+              </td>
+              <td className={celula + " text-right whitespace-nowrap"}>
+                <button className={botao.link} onClick={() => editar(c)}>
+                  editar
+                </button>
+                {c.status === "rascunho" && (
+                  <button
+                    className={botao.link + " ml-3"}
+                    onClick={() => mutarAbrir.mutate(c.id)}
+                  >
+                    abrir
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </Tabela>
       </Painel>
 
       {editando && (
-        <Painel titulo={editando === "nova" ? "Nova campanha" : "Editar campanha"}>
-          {erro && <Aviso tom="destaque">{erro}</Aviso>}
+        <Painel
+          titulo={editando === "nova" ? "Nova campanha" : "Editar campanha"}
+        >
+          {erro && <Aviso tom="perigo">{erro}</Aviso>}
           <div className="grid gap-3 md:grid-cols-2">
             <Campo label="Nome">
               <input
@@ -166,7 +233,9 @@ export function AbaCampanhas() {
                 type="date"
                 className={botao.input + " num"}
                 value={form.data_apuracao}
-                onChange={(e) => setForm({ ...form, data_apuracao: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, data_apuracao: e.target.value })
+                }
               />
             </Campo>
             <Campo label="Dígitos da cartela">
@@ -177,13 +246,50 @@ export function AbaCampanhas() {
                 className={botao.input + " num"}
                 value={form.digitos_cartela}
                 onChange={(e) =>
-                  setForm({ ...form, digitos_cartela: Number(e.target.value) || 6 })
+                  setForm({
+                    ...form,
+                    digitos_cartela: Number(e.target.value) || 6,
+                  })
                 }
               />
               <span className="text-[11px] text-muted-foreground">
-                {Math.pow(10, form.digitos_cartela).toLocaleString("pt-BR")} números na cartela
+                {Math.pow(10, form.digitos_cartela).toLocaleString("pt-BR")}{" "}
+                números na cartela
               </span>
             </Campo>
+          </div>
+
+          <div className="mt-4">
+            <span className="titulo text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
+              Como o número vencedor vai sair
+            </span>
+            <div className="mt-1 grid gap-2 md:grid-cols-2">
+              {MODOS.map((m) => {
+                const ativo = form.modo_apuracao === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    disabled={travado}
+                    onClick={() => setForm({ ...form, modo_apuracao: m.id })}
+                    className={`border p-3 text-left disabled:opacity-70 ${
+                      ativo
+                        ? "border-primary bg-primary/5"
+                        : "border-border bg-card"
+                    }`}
+                  >
+                    <span
+                      className={`titulo text-[13px] ${ativo ? "text-primary" : ""}`}
+                    >
+                      {m.nome}
+                    </span>
+                    <span className="mt-1 block text-[12px] leading-snug text-muted-foreground">
+                      {m.resumo}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="mt-4">
@@ -193,17 +299,24 @@ export function AbaCampanhas() {
                 disabled={travado}
                 className={botao.input + (travado ? " opacity-70" : "")}
                 value={form.criterio_apuracao}
-                onChange={(e) => setForm({ ...form, criterio_apuracao: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, criterio_apuracao: e.target.value })
+                }
               />
             </Campo>
             {travado && emEdicao && (
-              <Aviso tom="destaque">
-                <span className="titulo text-[11px] tracking-widest">Critério congelado</span> desde{" "}
+              <Aviso tom="alerta">
+                <span className="titulo text-[11px] tracking-widest">
+                  Critério e forma de apuração congelados
+                </span>{" "}
+                desde{" "}
                 <span className="num">
-                  {new Date(emEdicao.criterio_congelado_em).toLocaleString("pt-BR")}
+                  {new Date(emEdicao.criterio_congelado_em).toLocaleString(
+                    "pt-BR",
+                  )}
                 </span>
-                . Depois que a campanha abre o critério não pode mais ser editado — é o que sustenta
-                o selo de campanha oficial.
+                . Depois que a campanha abre o critério não pode mais ser
+                editado — é o que sustenta o selo de campanha oficial.
               </Aviso>
             )}
           </div>
@@ -221,7 +334,10 @@ export function AbaCampanhas() {
             >
               Salvar
             </button>
-            <button className={botao.secundario} onClick={() => setEditando(null)}>
+            <button
+              className={botao.secundario}
+              onClick={() => setEditando(null)}
+            >
               Cancelar
             </button>
           </div>
