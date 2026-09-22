@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AbaCampanhas } from "@/components/lm/admin/AbaCampanhas";
+import { AbaApostas } from "@/components/lm/admin/AbaApostas";
 import { AbaPesos } from "@/components/lm/admin/AbaPesos";
 import { AbaSincronizacao } from "@/components/lm/admin/AbaSincronizacao";
 import { AbaAuditoria } from "@/components/lm/admin/AbaAuditoria";
@@ -33,6 +34,7 @@ export const Route = createFileRoute("/painel")({
 
 const ABAS = [
   { id: "campanhas", label: "Campanhas" },
+  { id: "apostas", label: "Apostas" },
   { id: "pesos", label: "Pesos dos gatilhos" },
   { id: "sincronizacao", label: "Sincronização" },
   { id: "auditoria", label: "Auditoria" },
@@ -112,6 +114,7 @@ function Painel() {
 
       <main className="mx-auto max-w-[1400px] px-6 py-6">
         {aba === "campanhas" && <AbaCampanhas />}
+        {aba === "apostas" && <AbaApostas />}
         {aba === "pesos" && <AbaPesos />}
         {aba === "sincronizacao" && <AbaSincronizacao />}
         {aba === "auditoria" && <AbaAuditoria />}
