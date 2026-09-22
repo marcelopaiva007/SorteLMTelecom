@@ -88,6 +88,10 @@ export function AbaApostas() {
   const livresEscolhidos = leitura.numeros.filter((n) => !ocupados.has(n));
 
   const valorPorNumero = data?.valorPorNumero ?? 0;
+  // O módulo é registro de informação: dinheiro só aparece se alguém ajustar
+  // apostas_valor_por_numero (ou se já houver valor lançado em apostas antigas).
+  const mostrarValor =
+    valorPorNumero > 0 || (data?.indicadores?.valorTotal ?? 0) > 0;
   const valorCalculado = valorPorNumero * livresEscolhidos.length;
   const valorTotal =
     valorManual === null ? valorCalculado : lerValor(valorManual);
@@ -271,7 +275,12 @@ export function AbaApostas() {
       )}
 
       {indicadores && (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+        <div
+          className={
+            "grid grid-cols-2 gap-3 " +
+            (mostrarValor ? "lg:grid-cols-6" : "lg:grid-cols-5")
+          }
+        >
           <Indicador
             rotulo="Apostas valendo"
             valor={String(indicadores.apostas)}
@@ -292,10 +301,12 @@ export function AbaApostas() {
             valor={indicadores.mediaPorJogador.toFixed(1)}
             nota="números"
           />
-          <Indicador
-            rotulo="Valor informado"
-            valor={formatarMoeda(indicadores.valorTotal)}
-          />
+          {mostrarValor && (
+            <Indicador
+              rotulo="Valor informado"
+              valor={formatarMoeda(indicadores.valorTotal)}
+            />
+          )}
         </div>
       )}
 
@@ -456,7 +467,11 @@ export function AbaApostas() {
                 </Aviso>
               )}
 
-              <div className="grid grid-cols-2 gap-2">
+              <div
+                className={
+                  mostrarValor ? "grid grid-cols-2 gap-2" : "grid gap-2"
+                }
+              >
                 <Campo label="Canal">
                   <select
                     className={botao.input}
@@ -472,13 +487,15 @@ export function AbaApostas() {
                     ))}
                   </select>
                 </Campo>
-                <Campo label="Valor informado (R$)">
-                  <input
-                    className={botao.input}
-                    value={valorManual ?? valorCalculado.toFixed(2)}
-                    onChange={(e) => setValorManual(e.target.value)}
-                  />
-                </Campo>
+                {mostrarValor && (
+                  <Campo label="Valor informado (R$)">
+                    <input
+                      className={botao.input}
+                      value={valorManual ?? valorCalculado.toFixed(2)}
+                      onChange={(e) => setValorManual(e.target.value)}
+                    />
+                  </Campo>
+                )}
               </div>
 
               <Campo label="Observação (opcional)">
@@ -545,7 +562,7 @@ export function AbaApostas() {
                     <th>CPF/CNPJ</th>
                     <th className="text-right">Apostas</th>
                     <th className="text-right">Números</th>
-                    <th className="text-right">Valor</th>
+                    {mostrarValor && <th className="text-right">Valor</th>}
                     <th className="w-40">Última aposta</th>
                   </tr>
                 </thead>
@@ -566,9 +583,11 @@ export function AbaApostas() {
                       </td>
                       <td className="num text-right">{j.apostas}</td>
                       <td className="num text-right">{j.numeros}</td>
-                      <td className="num text-right">
-                        {formatarMoeda(j.valor)}
-                      </td>
+                      {mostrarValor && (
+                        <td className="num text-right">
+                          {formatarMoeda(j.valor)}
+                        </td>
+                      )}
                       <td className="num text-[12px] text-muted-foreground">
                         {j.ultima ? dataHoraBR(j.ultima) : "—"}
                       </td>
@@ -577,7 +596,7 @@ export function AbaApostas() {
                   {!(data?.ranking ?? []).length && (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={mostrarValor ? 6 : 5}
                         className="py-3 text-[12px] text-muted-foreground"
                       >
                         Nenhuma aposta registrada neste pleito ainda.

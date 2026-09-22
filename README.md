@@ -126,6 +126,10 @@ supabase/
 Um **pleito** é uma campanha. O módulo registra as apostas de vários jogadores
 nesse pleito e mantém o controle de quem ficou com o quê.
 
+É registro de informação: não há cobrança nem transação de valor. Os campos de
+valor ficam escondidos no painel enquanto `apostas_valor_por_numero` for `0`
+(o padrão).
+
 ### Como funciona
 
 1. **Jogador** - quem aposta. Pode ser cliente da L&M (ligado a `clientes`) ou
