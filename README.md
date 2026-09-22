@@ -83,11 +83,14 @@ src/
 │  └── painel.tsx    # Admin dashboard
 ├── components/
 │  ├── lm/           # Componentes específicos do Sorte LM
+│  │  └── admin/AbaApostas.tsx  # Controle de apostas multi-jogador
 │  └── ui/           # UI components (shadcn)
 ├── lib/
 │  ├── sorteio.functions.ts
 │  ├── sorteio.server.ts
-│  └── admin.functions.ts
+│  ├── admin.functions.ts
+│  ├── apostas.ts            # Regras puras das apostas (leitura de números, valores)
+│  └── apostas.functions.ts  # Registro e controle das apostas do pleito
 ├── integrations/supabase/
 │  ├── client.ts     # Cliente Supabase (browser)
 │  ├── client.server.ts
@@ -108,12 +111,58 @@ supabase/
 - **creditos** - Créditos ganhos por cliente (assinar, pagar em dia, quitar débito)
 - **numeros** - Números escolhidos pelos clientes na cartela
 - **eventos** - Log de eventos (assinar, pagar, quitar) com idempotência
+- **jogadores** - Participantes das apostas (cliente da L&M ou não)
+- **apostas** - Apostas registradas no pleito (protocolo, canal, situação, valor)
+- **aposta_numeros** - Números de cada aposta, um dono por número no pleito
 
 ### RLS (Row Level Security)
 
 - Clientes leem apenas seus dados
 - Cartela expõe quais números estão ocupados (anônimo)
 - Só Edge Functions escrevem em `creditos`
+
+## Controle de Apostas (multi-jogador)
+
+Um **pleito** é uma campanha. O módulo registra as apostas de vários jogadores
+nesse pleito e mantém o controle de quem ficou com o quê.
+
+É registro de informação: não há cobrança nem transação de valor. Os campos de
+valor ficam escondidos no painel enquanto `apostas_valor_por_numero` for `0`
+(o padrão).
+
+### Como funciona
+
+1. **Jogador** - quem aposta. Pode ser cliente da L&M (ligado a `clientes`) ou
+   alguém cadastrado no balcão. CPF/CNPJ repetido reaproveita o cadastro.
+2. **Aposta** - um jogador, N números, um protocolo (`AP-AAMMDD-00001`), o canal
+   (balcão, WhatsApp, app, importação) e a situação (registrada, confirmada,
+   cancelada).
+3. **Números** - exclusivos dentro do pleito. O mesmo número nunca fica com dois
+   jogadores, e a cartela de créditos (`numeros`) entra na mesma checagem: o
+   pleito não termina com dois donos do número sorteado.
+4. **Cancelamento** - devolve os números do jogador para a cartela e guarda o
+   motivo. Nada é apagado; o histórico fica para auditoria.
+
+### Travas do banco
+
+Todas valem mesmo que alguém escreva direto no Supabase:
+
+- `aposta_numeros_pleito_unico` - índice parcial com um dono por número ativo
+- `registrar_aposta(...)` - grava aposta e números numa transação só
+- número fora da cartela do pleito é recusado (`digitos_cartela`)
+- pleito `encerrada`/`apurada` não aceita aposta nova
+- RLS: só administradores (`is_admin()`) leem e escrevem
+
+### Ajustes (tabela `configuracoes`)
+
+- `apostas_limite_por_jogador` - teto de números por jogador no pleito (0 = sem limite)
+- `apostas_valor_por_numero` - valor sugerido por número ao registrar (0 = sem cobrança)
+
+### Onde fica
+
+Painel administrativo → aba **Apostas**: indicadores do pleito, registro de
+aposta (com "sorte da casa" e conferência dos números ocupados), ranking dos
+jogadores, lista de apostas com busca e exportação em CSV.
 
 ## Deploy
 
@@ -162,6 +211,7 @@ Todo push para `main` no GitHub redeploya automaticamente no Vercel.
 
 Acesso via `/painel`:
 - Gerenciamento de campanhas
+- Controle de apostas multi-jogador do pleito
 - Sincronização com ERP
 - Auditoria de eventos
 - Efeitos de crédito

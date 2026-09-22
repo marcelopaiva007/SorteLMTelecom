@@ -14,6 +14,117 @@ export type Database = {
   }
   public: {
     Tables: {
+      aposta_numeros: {
+        Row: {
+          aposta_id: string
+          ativo: boolean
+          campanha_id: string
+          criado_em: string
+          id: string
+          numero: number
+        }
+        Insert: {
+          aposta_id: string
+          ativo?: boolean
+          campanha_id: string
+          criado_em?: string
+          id?: string
+          numero: number
+        }
+        Update: {
+          aposta_id?: string
+          ativo?: boolean
+          campanha_id?: string
+          criado_em?: string
+          id?: string
+          numero?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aposta_numeros_aposta_id_fkey"
+            columns: ["aposta_id"]
+            isOneToOne: false
+            referencedRelation: "apostas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aposta_numeros_campanha_id_fkey"
+            columns: ["campanha_id"]
+            isOneToOne: false
+            referencedRelation: "campanhas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      apostas: {
+        Row: {
+          campanha_id: string
+          cancelada_em: string | null
+          cancelada_por: string | null
+          canal: Database["public"]["Enums"]["canal_aposta"]
+          id: string
+          jogador_id: string
+          motivo_cancelamento: string | null
+          observacao: string | null
+          protocolo: string
+          quantidade: number
+          registrada_em: string
+          registrada_por: string | null
+          registrada_por_email: string | null
+          status: Database["public"]["Enums"]["status_aposta"]
+          valor_total: number
+        }
+        Insert: {
+          campanha_id: string
+          cancelada_em?: string | null
+          cancelada_por?: string | null
+          canal?: Database["public"]["Enums"]["canal_aposta"]
+          id?: string
+          jogador_id: string
+          motivo_cancelamento?: string | null
+          observacao?: string | null
+          protocolo: string
+          quantidade?: number
+          registrada_em?: string
+          registrada_por?: string | null
+          registrada_por_email?: string | null
+          status?: Database["public"]["Enums"]["status_aposta"]
+          valor_total?: number
+        }
+        Update: {
+          campanha_id?: string
+          cancelada_em?: string | null
+          cancelada_por?: string | null
+          canal?: Database["public"]["Enums"]["canal_aposta"]
+          id?: string
+          jogador_id?: string
+          motivo_cancelamento?: string | null
+          observacao?: string | null
+          protocolo?: string
+          quantidade?: number
+          registrada_em?: string
+          registrada_por?: string | null
+          registrada_por_email?: string | null
+          status?: Database["public"]["Enums"]["status_aposta"]
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "apostas_campanha_id_fkey"
+            columns: ["campanha_id"]
+            isOneToOne: false
+            referencedRelation: "campanhas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "apostas_jogador_id_fkey"
+            columns: ["jogador_id"]
+            isOneToOne: false
+            referencedRelation: "jogadores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campanhas: {
         Row: {
           criado_em: string
@@ -299,6 +410,53 @@ export type Database = {
           },
         ]
       }
+      jogadores: {
+        Row: {
+          apelido: string | null
+          ativo: boolean
+          cliente_id: string | null
+          criado_em: string
+          criado_por: string | null
+          documento: string | null
+          id: string
+          nome: string
+          observacao: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          apelido?: string | null
+          ativo?: boolean
+          cliente_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          documento?: string | null
+          id?: string
+          nome: string
+          observacao?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          apelido?: string | null
+          ativo?: boolean
+          cliente_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          documento?: string | null
+          id?: string
+          nome?: string
+          observacao?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jogadores_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       numeros: {
         Row: {
           campanha_id: string
@@ -480,8 +638,22 @@ export type Database = {
     }
     Functions: {
       is_admin: { Args: { _user_id?: string }; Returns: boolean }
+      registrar_aposta: {
+        Args: {
+          _campanha_id: string
+          _canal?: Database["public"]["Enums"]["canal_aposta"]
+          _jogador_id: string
+          _numeros: number[]
+          _observacao?: string | null
+          _registrada_por_email?: string | null
+          _valor_total?: number
+        }
+        Returns: Json
+      }
     }
     Enums: {
+      canal_aposta: "balcao" | "whatsapp" | "app" | "importacao"
+      status_aposta: "registrada" | "confirmada" | "cancelada"
       status_campanha: "rascunho" | "aberta" | "encerrada" | "apurada"
       status_cliente: "ativo" | "cancelado" | "suspenso"
       tipo_evento:
@@ -616,6 +788,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      canal_aposta: ["balcao", "whatsapp", "app", "importacao"],
+      status_aposta: ["registrada", "confirmada", "cancelada"],
       status_campanha: ["rascunho", "aberta", "encerrada", "apurada"],
       status_cliente: ["ativo", "cancelado", "suspenso"],
       tipo_evento: [
